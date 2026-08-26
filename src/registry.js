@@ -1,9 +1,10 @@
-/** Registry: merge local JSON entries + Circle Discovery API + Masterkey catalog. */
+/** Registry: merge local JSON entries + Circle Discovery API + Masterkey catalog + ZAuth directory. */
 import fs from 'node:fs';
 import path from 'node:path';
 
 const DISCOVERY_URL = 'https://api.circle.com/v2/x402/discovery/resources';
 const MASTERKEY_URL = process.env.MASTERKEY_CATALOG_URL || 'https://www.masterkey.sh/api/catalog';
+const ZAUTH_URL = process.env.ZAUTH_API_URL || 'https://api.zauth.inc';
 
 /** PulsRouter chain name -> EIP-155 chain id (Arc testnet = 5042002). */
 const CHAIN_IDS = {
@@ -133,12 +134,12 @@ export async function buildRegistry(cfg, fetchImpl = globalThis.fetch) {
         const j = await res.json();
         normalizeDiscovery(j.resources || [], cfg.chain).forEach(push);
       }
-    } catch { /* discovery is optional — silent fallback to local */ }
+    } catch { /* discovery is optional РІР‚вЂќ silent fallback to local */ }
   }
 
-  // ── Masterkey.sh catalog (1800+ x402 services, keyless API) ──────────────
+  // РІвЂќР‚РІвЂќР‚ Masterkey.sh catalog (1800+ x402 services, keyless API) РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚
   try {
-    const mkRes = await fetch(MASTERKEY_URL, { signal: AbortSignal.timeout(10000) });
+    const mkRes = await fetchImpl(MASTERKEY_URL, { signal: AbortSignal.timeout(10000) });
     if (mkRes.ok) {
       const mkj = await mkRes.json();
       const entries = Array.isArray(mkj.entries) ? mkj.entries : [];
@@ -157,5 +158,36 @@ export async function buildRegistry(cfg, fetchImpl = globalThis.fetch) {
     }
   } catch { /* masterkey optional */ }
 
+  // РІвЂќР‚РІвЂќР‚ ZAuth.inc directory (2000+ WORKING x402 endpoints, keyless API) РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚
+  try {
+    let zpage = 0, zmore = true;
+    while (zmore && zpage < 5) {
+      const zRes = await fetchImpl(
+        `${ZAUTH_URL}/api/x402/endpoints?page=${zpage}&limit=100&filter=working`,
+        { signal: AbortSignal.timeout(15_000) }
+      );
+      if (!zRes.ok) break;
+      const zj = await zRes.json();
+      const zRows = Array.isArray(zj.endpoints) ? zj.endpoints : [];
+      if (!zRows.length) { zmore = false; break; }
+      for (const ep of zRows) {
+        if (ep.status !== 'WORKING' || !ep.url) continue;
+        push({
+          type: 'x402_service',
+          name: ep.title || new URL(ep.url).pathname.split('/').filter(Boolean).pop() || ep.url,
+          endpoint: ep.url,
+          priceUsdc: Number(ep.lastPriceUsdc) || 0,
+          chain: String(ep.network || '').toLowerCase(),
+          source: 'zauth',
+          verified: ep.verified === true,
+        });
+      }
+      zmore = zj.pagination?.hasMore === true;
+      zpage++;
+    }
+  } catch { /* zauth optional */ }
+
   return out;
 }
+
+let _zHasMore = false;
