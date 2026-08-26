@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<!--
+════════════════════════════════════════════════════════════════════════════
+PULSROUTER LANDING — COPY DECK (copy-paste text for every section)
+════════════════════════════════════════════════════════════════════════════
+
+HERO
+  Eyebrow:    X402 · USDC · AGENT WALLETS
+  Headline:   One endpoint for the x402 economy.
+  Sub:        PulsRouter finds the cheapest healthy provider for your data,
+              settles in USDC from your Circle Agent Wallet, and falls over
+              automatically. You write zero payment code.
+  CTA 1:      Start routing in 5 minutes        → #start
+  CTA 2:      Read the API docs                  → docs/API.md
+  Terminal:   $ node src/index.js pay research "fed rate decision"
+              routing "research" via cheapest healthy provider…
+              via    Puls Deep Research
+              price  0.01 USDC
+              { "paid": true, "settledTx": "0x9f2a…" }
+
+STATS BAR
+  ⬡ Providers     built-in catalog + Circle x402 Discovery
+  ⛓ Chains        Arc testnet now · mainnet-ready
+  💸 Price        $0.01/query typical
+  🛡 Budgets       daily caps, enforced before money moves
+
+THE PROMISE (3 pain→fix cards)
+  1. THE PAIN   Every paid API invents its own payment scheme.
+    THE FIX     One request shape forever: POST /proxy {"type","q"}.
+                The HTTP 402 dance — terms, signature, settlement — is ours,
+                not yours.
+  2. THE PAIN   Price and uptime are a lottery you play blind.
+    THE FIX     Every call, PulsRouter sorts the catalog cheapest-first,
+                skips unhealthy nodes, and walks down the list until someone
+                answers.
+  3. THE PAIN   Autonomous agents don't know when to stop spending.
+    THE FIX     Daily USDC caps per data type, checked before any offer is
+                made. An exhausted budget routes nowhere — by construction.
+
+HOW IT WORKS (diagram description)
+  A left-to-right flow: YOUR APP → PULSROUTER → PROVIDER, then back.
+  Step 1 — CATALOG: config localRows + registry.json merged with Circle
+           x402 Discovery, filtered to your chain, deduped.
+  Step 2 — ROUTE: filter by type, sort by price, enforce the daily budget.
+  Step 3 — PAY: the winner gets an x402 handshake; USDC leaves your agent
+           wallet only after terms are accepted.
+  Step 4 — RECEIPT: {via, priceUsdc, result} returns to your app; failures
+           fall through to the next candidate automatically.
+  Caption: If the winner won't answer, the runner-up already has your query.
+
+LIVE CATALOG EMBED SPEC
+  Purpose: prove the catalog is real by rendering GET /registry on this page.
+  Behavior: when this page is served by PulsRouter itself (same origin), the
+  table hydrates from GET /registry; opened statically, it shows the sample
+  rows labeled "sample data".
+  Embed snippet (any page served from the router origin):
+    <tbody id="puls-catalog"></tbody>
+    <script>
+      fetch('/registry').then(r => r.json()).then(({ registry }) => {
+        document.getElementById('puls-catalog').innerHTML = registry.map(r =>
+          '<tr><td>' + r.type + '</td><td>' + r.name + '</td><td>$' +
+          Number(r.priceUsdc).toFixed(4) + '</td><td>' + r.source + '</td></tr>'
+        ).join('');
+      });
+    </script>
+  Escape provider fields with your templater if any row can come from
+  third-party discovery data.
+
+PRICING TABLE (free / open-source)
+  Tier:        Self-Hosted — $0, forever
+  Rows:        Full router (catalog, routing, failover) ......... included
+               Daily budgets + ledger ............................ included
+               Control-deck dashboard ............................ included
+               CLI (pay/balance/pending/status) .................. included
+               License ........................................... MIT
+  Fine print:  PulsRouter charges nothing. You pay each provider's
+               per-call price in USDC — typically $0.01 or less — from your
+               own wallet. No accounts, no cloud, no middleman.
+
+FAQ (3 questions)
+  Q1: Is this real money?
+  A1: Yes — real USDC settlement through the x402 flow, via your Circle
+      Agent Wallet. Everything defaults to ARC-TESTNET, so you can run the
+      whole pipeline on test funds before touching mainnet. Budget caps keep
+      the blast radius small either way.
+
+  Q2: What do I need installed?
+  A2: Node ≥ 18, the Circle CLI logged in, and a wallet with a little USDC.
+      That's it — PulsRouter has zero npm dependencies and no build step.
+      Clone, init, set your wallet, pay.
+
+  Q3: Can I use my own providers?
+  A3: Yes. Any x402 resource works: add four fields to pulsrouter.config.json
+      (type, name, endpoint, priceUsdc) and it joins the catalog next to
+      Discovery results. Your rows win duplicates and never leave your box.
+
+FOOTER
+  Tagline:  Built for the x402 economy — nanopayments, machine-speed.
+  Links:    docs/API.md · docs/BUDGETS.md · docs/guide.md · public/dashboard.html
+  Legal:    MIT licensed. Free, open source, self-hosted. /proxy moves real
+            money — keep budgets small until you trust your providers.
+════════════════════════════════════════════════════════════════════════════ -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PulsRouter — One endpoint for the x402 economy</title>
+<style>
+  :root {
+    --bg: #0f1629;
+    --bg2: #131c33;
+    --panel: #141e38;
+    --panel2: #182444;
+    --line: rgba(6, 182, 212, .22);
+    --cyan: #06b6d4;
+    --cyan-hi: #22d3ee;
+    --magenta: #ec4899;
+    --magenta-hi: #f472b6;
+    --txt: #dbe7ff;
+    --dim: #7d8db1;
+    --faint: #4a5878;
+    --ok: #34d399;
+    --mono: ui-monospace, "Cascadia Code", Consolas, "Courier New", monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background:
+      radial-gradient(1000px 600px at 85% -10%, rgba(236, 72, 153, .09), transparent 60%),
+      radial-gradient(1000px 700px at -10% 110%, rgba(6, 182, 212, .10), transparent 60%),
+      linear-gradient(rgba(6, 182, 212, .03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(6, 182, 212, .03) 1px, transparent 1px),
+      var(--bg);
+    background-size: auto, auto, 34px 34px, 34px 34px, auto;
+    color: var(--txt);
+    font-family: var(--sans);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  .mono { font-family: var(--mono); }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(15, 22, 41, .88); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav { display: flex; align-items: center; gap: 22px; padding: 14px 24px; max-width: 1080px; margin: 0 auto; }
+  .logo { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-weight: 700; letter-spacing: .18em; font-size: 14px; text-decoration: none; }
+  .logo .sigil {
+    width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
+    border: 1px solid var(--cyan); color: var(--cyan-hi); font-size: 12px;
+    box-shadow: 0 0 12px rgba(6, 182, 212, .45);
+  }
+  .logo b { background: linear-gradient(90deg, var(--cyan-hi), var(--magenta-hi)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  nav.links { margin-left: auto; display: flex; gap: 20px; align-items: center; }
+  nav.links a { color: var(--dim); text-decoration: none; font-size: 13.5px; transition: color .15s; }
+  nav.links a:hover { color: var(--cyan-hi); }
+  .btn {
+    display: inline-block; text-decoration: none; cursor: pointer;
+    padding: 10px 20px; border-radius: 10px; font-weight: 600; font-size: 13.5px;
+    transition: filter .15s, transform .1s, box-shadow .15s;
+  }
+  .btn-primary {
+    color: #fff; background: linear-gradient(90deg, var(--cyan), var(--magenta));
+    box-shadow: 0 0 18px rgba(6, 182, 212, .35), 0 0 30px rgba(236, 72, 153, .18);
+  }
+  .btn-primary:hover { filter: brightness(1.15); }
+  .btn-primary:active { transform: scale(.98); }
+  .btn-ghost { color: var(--cyan-hi); border: 1px solid var(--line); background: rgba(6,182,212,.06); }
+  .btn-ghost:hover { border-color: var(--cyan); }
+
+  .hero { padding: 84px 0 60px; }
+  .hero .grid2 { display: grid; grid-template-columns: 1.05fr .95fr; gap: 44px; align-items: center; }
+  @media (max-width: 900px) { .hero .grid2 { grid-template-columns: 1fr; } }
+  .eyebrow {
+    display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: .3em;
+    color: var(--magenta-hi); border: 1px solid rgba(236, 72, 153, .45);
+    padding: 5px 14px; border-radius: 999px; margin-bottom: 22px;
+    background: rgba(236, 72, 153, .07);
+  }
+  h1 {
+    font-size: clamp(34px, 5.4vw, 56px); line-height: 1.08; letter-spacing: -.02em;
+    font-weight: 800; margin-bottom: 20px;
+  }
+  h1 .grad { background: linear-gradient(90deg, var(--cyan-hi), var(--magenta-hi)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { color: var(--dim); font-size: 17px; max-width: 480px; margin-bottom: 30px; }
+  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+
+  .terminal {
+    background: #0b1222; border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .45), 0 0 40px rgba(6, 182, 212, .08);
+    overflow: hidden; font-family: var(--mono); font-size: 13px;
+  }
+  .term-bar { display: flex; gap: 7px; padding: 11px 14px; border-bottom: 1px solid var(--line-soft, rgba(6,182,212,.12)); background: rgba(255,255,255,.02); }
+  .term-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--faint); opacity: .6; }
+  .term-bar i:first-child { background: var(--magenta); opacity: .85; }
+  .term-body { padding: 16px 18px 20px; line-height: 1.75; white-space: pre-wrap; word-break: break-word; }
+  .t-dim { color: var(--faint); } .t-cmd { color: var(--txt); } .t-prompt { color: var(--ok); }
+  .t-out { color: var(--dim); } .t-key { color: var(--cyan-hi); } .t-hot { color: var(--magenta-hi); }
+  .cursor { display: inline-block; width: 8px; height: 15px; background: var(--cyan-hi); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  section { padding: 64px 0; }
+  .kicker { font-family: var(--mono); font-size: 11px; letter-spacing: .32em; color: var(--magenta-hi); text-transform: uppercase; margin-bottom: 10px; }
+  h2 { font-size: clamp(24px, 3.4vw, 34px); letter-spacing: -.01em; margin-bottom: 14px; font-weight: 750; }
+  .lede { color: var(--dim); max-width: 640px; margin-bottom: 36px; }
+
+  .statsbar {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  }
+  @media (max-width: 760px) { .statsbar { grid-template-columns: repeat(2, 1fr); } }
+  .stat { background: linear-gradient(180deg, var(--panel2), var(--panel)); padding: 20px 22px; }
+  .stat .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .24em; color: var(--faint); text-transform: uppercase; }
+  .stat .v { font-size: 17px; font-weight: 650; margin-top: 6px; color: var(--cyan-hi); }
+  .stat:nth-child(even) .v { color: var(--magenta-hi); }
+  .stat .n { font-size: 12px; color: var(--dim); margin-top: 2px; }
+
+  .cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  @media (max-width: 900px) { .cards3 { grid-template-columns: 1fr; } }
+  .pcard {
+    background: linear-gradient(180deg, var(--panel2), var(--panel));
+    border: 1px solid var(--line); border-radius: 14px; padding: 24px;
+    position: relative; transition: transform .15s, box-shadow .15s, border-color .15s;
+  }
+  .pcard:hover { transform: translateY(-3px); border-color: rgba(236, 72, 153, .5); box-shadow: 0 10px 34px rgba(236, 72, 153, .12); }
+  .pain { font-size: 13.5px; color: var(--dim); padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px dashed rgba(125, 141, 177, .25); }
+  .pain b { display: block; font-family: var(--mono); font-size: 10.5px; letter-spacing: .26em; color: var(--err, #f87171); margin-bottom: 8px; text-transform: uppercase; }
+  .fix b { display: block; font-family: var(--mono); font-size: 10.5px; letter-spacing: .26em; color: var(--ok); margin-bottom: 8px; text-transform: uppercase; }
+  .fix { font-size: 14.5px; color: var(--txt); }
+  .pcard .num { position: absolute; top: 18px; right: 20px; font-family: var(--mono); color: var(--faint); font-size: 12px; }
+
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; counter-reset: step; }
+  @media (max-width: 900px) { .flow { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .flow { grid-template-columns: 1fr; } }
+  .step {
+    background: linear-gradient(180deg, var(--panel2), var(--panel));
+    border: 1px solid var(--line); border-radius: 14px; padding: 22px 20px; position: relative;
+  }
+  .step::before {
+    counter-increment: step; content: "0" counter(step);
+    font-family: var(--mono); font-size: 26px; font-weight: 700;
+    background: linear-gradient(90deg, var(--cyan), var(--magenta));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    display: block; margin-bottom: 10px;
+  }
+  .step h3 { font-size: 15px; margin-bottom: 6px; }
+  .step p { font-size: 13px; color: var(--dim); }
+  .flow-caption { margin-top: 22px; text-align: center; color: var(--faint); font-size: 13.5px; font-style: italic; }
+
+  table.tbl { width: 100%; border-collapse: collapse; background: linear-gradient(180deg, var(--panel2), var(--panel)); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; font-size: 14px; }
+  table.tbl th { text-align: left; font-family: var(--mono); font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--faint); padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  table.tbl td { padding: 12px 16px; border-bottom: 1px solid rgba(125, 141, 177, .1); }
+  table.tbl tr:last-child td { border-bottom: none; }
+  td.price, th.price { text-align: right; font-family: var(--mono); color: var(--magenta-hi); font-weight: 600; white-space: nowrap; }
+  .chip { display: inline-block; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; border: 1px solid var(--line); color: var(--cyan-hi); border-radius: 999px; padding: 2px 10px; }
+  .chip.src-discovery { border-color: rgba(236, 72, 153, .45); color: var(--magenta-hi); }
+
+  .split { display: grid; grid-template-columns: 1fr 1.1fr; gap: 36px; align-items: start; }
+  @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+  .codebox { background: #0b1222; border: 1px solid var(--line); border-radius: 12px; padding: 18px; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; overflow-x: auto; color: #a5d8ff; white-space: pre; }
+  .note { font-size: 12.5px; color: var(--faint); margin-top: 12px; }
+
+  details.faq {
+    background: linear-gradient(180deg, var(--panel2), var(--panel));
+    border: 1px solid var(--line); border-radius: 12px; margin-bottom: 12px; overflow: hidden;
+  }
+  details.faq summary {
+    cursor: pointer; list-style: none; padding: 18px 22px; font-weight: 600; font-size: 15px;
+    display: flex; justify-content: space-between; align-items: center; gap: 14px;
+  }
+  details.faq summary::-webkit-details-marker { display: none; }
+  details.faq summary::after { content: "+"; font-family: var(--mono); color: var(--cyan-hi); font-size: 19px; transition: transform .18s; }
+  details.faq[open] summary::after { transform: rotate(45deg); }
+  details.faq .ans { padding: 0 22px 20px; color: var(--dim); font-size: 14px; max-width: 760px; }
+
+  footer { border-top: 1px solid var(--line); padding: 38px 0 46px; margin-top: 40px; }
+  .foot { display: flex; flex-wrap: wrap; gap: 20px; align-items: baseline; justify-content: space-between; }
+  .foot .tag { font-family: var(--mono); font-size: 12.5px; color: var(--faint); letter-spacing: .06em; }
+  .foot-links { display: flex; gap: 18px; flex-wrap: wrap; }
+  .foot-links a { color: var(--dim); font-size: 13px; text-decoration: none; }
+  .foot-links a:hover { color: var(--cyan-hi); }
+  .legal { margin-top: 16px; font-size: 12px; color: var(--faint); max-width: 720px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <a class="logo" href="#top"><span class="sigil">◉</span><b>PULSROUTER</b></a>
+    <nav class="links">
+      <a href="#promise">Why</a>
+      <a href="#how">How it works</a>
+      <a href="#catalog">Catalog</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+      <a class="btn btn-ghost" href="docs/API.md">API docs</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap grid2">
+      <div>
+        <span class="eyebrow">X402&nbsp;·&nbsp;USDC&nbsp;·&nbsp;AGENT&nbsp;WALLETS</span>
+        <h1>One endpoint for the <span class="grad">x402 economy.</span></h1>
+        <p class="sub">PulsRouter finds the cheapest healthy provider for your data, settles in USDC from your Circle Agent Wallet, and falls over automatically. You write zero payment code.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#start">Start routing in 5 minutes</a>
+          <a class="btn btn-ghost" href="docs/API.md">Read the API docs</a>
+        </div>
+      </div>
+      <div class="terminal" aria-label="terminal demo">
+        <div class="term-bar"><i></i><i></i><i></i></div>
+        <div class="term-body"><span class="t-dim"># first real payment — cheapest provider wins</span>
+<span class="t-prompt">$</span> <span class="t-cmd">node src/index.js pay research "fed rate decision"</span>
+<span class="t-out">routing "research" via cheapest healthy provider…</span>
+<span class="t-key">via</span>    Puls Deep Research
+<span class="t-key">price</span>  <span class="t-hot">0.01 USDC</span>
+{
+  "<span class="t-key">paid</span>": true,
+  "<span class="t-key">count</span>": 3,
+  "<span class="t-key">settledTx</span>": "0x9f2a…"
+}<span class="cursor"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="start" style="padding-top:0">
+    <div class="wrap">
+      <div class="statsbar">
+        <div class="stat"><div class="k">⬡ Providers</div><div class="v">Built-in + Discovery</div><div class="n">localRows merge Circle x402 Discovery</div></div>
+        <div class="stat"><div class="k">⛓ Chains</div><div class="v">Arc testnet now</div><div class="n">mainnet-ready chain mapping</div></div>
+        <div class="stat"><div class="k">💸 Price</div><div class="v">$0.01/query typical</div><div class="n">you always see the price first</div></div>
+        <div class="stat"><div class="k">🛡 Budgets</div><div class="v">Daily caps</div><div class="n">enforced before money moves</div></div>
+      </div>
+      <p class="note mono" style="margin-top:18px">three commands, zero dependencies:&nbsp; <span style="color:var(--cyan-hi)">node src/index.js init</span> &nbsp→&nbsp; <span style="color:var(--cyan-hi)">set WALLET</span> &nbsp→&nbsp; <span style="color:var(--cyan-hi)">node src/index.js pay research "…"</span></p>
+    </div>
+  </section>
+
+  <section id="promise">
+    <div class="wrap">
+      <div class="kicker">The Promise</div>
+      <h2>Nanopayments shouldn't need a payments team.</h2>
+      <p class="lede">Paid APIs are exploding across the x402 ecosystem — and every one of them threatens to make you implement 402 handshakes, price comparison, and spend control yourself. Don't.</p>
+      <div class="cards3">
+        <div class="pcard"><span class="num">01</span>
+          <div class="pain"><b>The Pain</b>Every paid API invents its own payment scheme. Headers here, tokens there, SDKs everywhere.</div>
+          <div class="fix"><b>The Fix</b>One request shape forever: <span class="mono">POST /proxy {"type","q"}</span>. The HTTP 402 dance — terms, signature, settlement — is ours, not yours.</div>
+        </div>
+        <div class="pcard"><span class="num">02</span>
+          <div class="pain"><b>The Pain</b>Price and uptime are a lottery you play blind. Today's cheapest provider is tomorrow's 500 error.</div>
+          <div class="fix"><b>The Fix</b>Every call, PulsRouter sorts the catalog cheapest-first, skips unhealthy nodes, and walks down the list until someone answers.</div>
+        </div>
+        <div class="pcard"><span class="num">03</span>
+          <div class="pain"><b>The Pain</b>Autonomous agents don't know when to stop spending. A retry loop can drain a wallet while you sleep.</div>
+          <div class="fix"><b>The Fix</b>Daily USDC caps per data type, checked before any offer is made. An exhausted budget routes nowhere — by construction.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="kicker">How It Works</div>
+      <h2>Your app → PulsRouter → the provider. That's the whole picture.</h2>
+      <p class="lede">One POST in, receipt plus payload out. Between those two events, four things happen in milliseconds — none of them your problem.</p>
+      <div class="flow">
+        <div class="step"><h3>Catalog</h3><p>Config localRows and registry.json merge with Circle x402 Discovery, filtered to your chain, deduped.</p></div>
+        <div class="step"><h3>Route</h3><p>Filter by type, sort by price, enforce the daily budget. Cheapest healthy candidate first.</p></div>
+        <div class="step"><h3>Pay</h3><p>The winner gets an x402 handshake. USDC leaves your agent wallet only after terms are accepted.</p></div>
+        <div class="step"><h3>Receipt</h3><p>{via, priceUsdc, result} returns to your app. Failures fall through to the next candidate automatically.</p></div>
+      </div>
+      <p class="flow-caption">If the winner won't answer, the runner-up already has your query.</p>
+    </div>
+  </section>
+
+  <section id="catalog">
+    <div class="wrap split">
+      <div>
+        <div class="kicker">Live Catalog</div>
+        <h2>The menu is the product.</h2>
+        <p class="lede">This table is <span class="mono">GET /registry</span>. Serve this page from PulsRouter and it fills with your actual, priced, routable catalog — the same list every payment consults.</p>
+        <div class="codebox">fetch('/registry').then(r =&gt; r.json())
+  .then(({ registry }) =&gt; {
+    tbody.innerHTML = registry.map(r =&gt;
+      '&lt;tr&gt;&lt;td&gt;' + esc(r.type) +
+      '&lt;/td&gt;&lt;td&gt;' + esc(r.name) +
+      '&lt;/td&gt;&lt;td&gt;$' +
+      Number(r.priceUsdc).toFixed(4) +
+      '&lt;/td&gt;&lt;td&gt;' + esc(r.source) +
+      '&lt;/td&gt;&lt;/tr&gt;';
+    ).join('');
+  });</div>
+        <p class="note">Embed spec: any page on the router's origin can render the live catalog with the snippet above. Opened statically (like now), it falls back to the sample rows shown. Escape provider fields — discovery rows come from third parties.</p>
+      </div>
+      <div>
+        <table class="tbl" aria-label="provider catalog preview">
+          <thead><tr><th>Type</th><th>Provider</th><th class="price">Price</th><th>Source</th></tr></thead>
+          <tbody id="liveCatalog">
+            <tr><td><span class="chip">research</span></td><td>Puls Deep Research</td><td class="price">$0.0100</td><td><span class="chip">local</span></td></tr>
+            <tr><td><span class="chip">markets</span></td><td>Puls Market Snapshot</td><td class="price">$0.0100</td><td><span class="chip">local</span></td></tr>
+            <tr><td><span class="chip">your type</span></td><td>Any x402 resource you add</td><td class="price">$0.0001+</td><td><span class="chip src-discovery">discovery</span></td></tr>
+            <tr><td colspan="4" style="text-align:center;color:var(--faint);font-size:12.5px;padding:14px">sample data — serve from the router to hydrate live</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <div class="wrap">
+      <div class="kicker">Pricing</div>
+      <h2>Free. Open source. Forever.</h2>
+      <p class="lede">PulsRouter charges nothing — there is no PulsRouter bill. You pay each provider's per-call price in USDC from your own wallet, typically $0.01 or less.</p>
+      <table class="tbl">
+        <thead><tr><th>Self-hosted tier — $0</th><th class="price">included</th></tr></thead>
+        <tbody>
+          <tr><td>Full router — catalog, cheapest-first routing, failover</td><td class="price">✓</td></tr>
+          <tr><td>Daily budgets + in-memory spend ledger</td><td class="price">✓</td></tr>
+          <tr><td>Control-deck dashboard (Overview · Registry · Pay · Log)</td><td class="price">✓</td></tr>
+          <tr><td>CLI — pay · balance · pending · status</td><td class="price">✓</td></tr>
+          <tr><td>License</td><td class="price">MIT</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <div class="kicker">FAQ</div>
+      <h2>Fair questions.</h2>
+      <details class="faq" open>
+        <summary>Is this real money?</summary>
+        <div class="ans">Yes — real USDC settlement through the x402 flow, via your Circle Agent Wallet. Everything defaults to ARC-TESTNET, so you can run the entire pipeline on test funds before touching mainnet. Daily budget caps keep the blast radius small either way.</div>
+      </details>
+      <details class="faq">
+        <summary>What do I need installed?</summary>
+        <div class="ans">Node ≥ 18, the Circle CLI logged in (<span class="mono">circle wallet status</span>), and a wallet with a little USDC. That's it — PulsRouter has zero npm dependencies and no build step. Clone, init, set your wallet, pay.</div>
+      </details>
+      <details class="faq">
+        <summary>Can I use my own providers?</summary>
+        <div class="ans">Yes. Any x402 resource works: add four fields to <span class="mono">pulsrouter.config.json</span> — <span class="mono">type, name, endpoint, priceUsdc</span> — and it joins the catalog alongside Discovery results. Your local rows win endpoint duplicates, and nothing about your catalog ever leaves your box.</div>
+      </details>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot">
+        <a class="logo" href="#top"><span class="sigil">◉</span><b>PULSROUTER</b></a>
+        <nav class="foot-links">
+          <a href="docs/API.md">API Reference</a>
+          <a href="docs/BUDGETS.md">Budgets</a>
+          <a href="docs/guide.md">User Guide</a>
+          <a href="public/dashboard.html">Dashboard</a>
+          <a href="README.md">README</a>
+        </nav>
+      </div>
+      <p class="tag" style="margin-top:14px">built for the x402 economy — nanopayments, machine-speed.</p>
+      <p class="legal">MIT licensed. Free, open source, self-hosted — no accounts, no cloud, no middleman. ⚠️ <span class="mono">/proxy</span> moves real money: keep budgets small until you trust your providers.</p>
+    </div>
+  </footer>
+
+</main>
+
+<script>
+"use strict";
+(function () {
+  if (!location.protocol.startsWith("http")) return;
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  var body = document.getElementById("liveCatalog");
+  if (!body) return;
+  fetch("/registry").then(function (r) { return r.json(); }).then(function (j) {
+    var rows = j && j.registry;
+    if (!Array.isArray(rows) || !rows.length) return;
+    body.innerHTML = rows.map(function (r) {
+      var price = Number(r.priceUsdc);
+      return "<tr><td><span class=\"chip\">" + esc(r.type) + "</span></td>" +
+        "<td>" + esc(r.name || r.endpoint || "") + "</td>" +
+        "<td class=\"price\">$" + (Number.isFinite(price) ? price.toFixed(4) : "?") + "</td>" +
+        "<td><span class=\"chip " + (String(r.source) === "discovery" ? "src-discovery" : "") + "\">" + esc(r.source || "local") + "</span></td></tr>";
+    }).join("");
+  }).catch(function () {});
+})();
+</script>
+</body>
+</html>

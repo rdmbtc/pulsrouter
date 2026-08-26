@@ -1,0 +1,28 @@
+{
+  "_docs": {
+    "wallets": "Array of { address, label, primary }. Plain \"0x..\" strings are also accepted. resolveWallet(cfg) uses the first primary:true entry, else wallets[0]; placeholder addresses (<like-this>) count as unconfigured. Select a specific wallet by label, address, or index.",
+    "budgets": "dataType -> daily USDC cap; 0 or missing means unlimited for that type.",
+    "registries.local": "Path to a local provider catalog JSON (bare array or {endpoints:[...]}). registry.seed.json ships preloaded Puls endpoints.",
+    "registries.discovery": "When true (default), merge Circle x402 Discovery results filtered to cfg.chain."
+  },
+  "chain": "ARC-TESTNET",
+  "wallets": [
+    { "address": "<your-agent-wallet>", "label": "vega", "primary": true },
+    { "address": "<optional-second-wallet>", "label": "atlas" }
+  ],
+  "budgets": {
+    "research": 5,
+    "markets": 1
+  },
+  "registries": {
+    "local": "./registry.seed.json",
+    "discovery": true
+  },
+  "rails": {
+    "cli": true,
+    "gateway": false
+  },
+  "server": {
+    "port": 3000
+  }
+}

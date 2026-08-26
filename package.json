@@ -1,0 +1,17 @@
+{
+  "name": "pulsrouter",
+  "version": "0.2.0",
+  "description": "One endpoint for the x402 economy: route paid-data requests to the cheapest healthy provider, pay from your Circle Agent Wallet, fall over automatically.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": { "pulsrouter": "src/index.js" },
+  "files": ["src/", "registry.seed.json"],
+  "scripts": {
+    "start": "node src/index.js serve",
+    "test": "node --test",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": ["x402", "usdc", "arc", "circle", "agent-stack", "router", "nanopayments"],
+  "license": "MIT",
+  "engines": { "node": ">=18" }
+}

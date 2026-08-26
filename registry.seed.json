@@ -1,0 +1,16 @@
+[
+  {
+    "type": "research",
+    "name": "Puls Deep Research",
+    "endpoint": "https://api.pulsmarket.tech/api/x402/research",
+    "priceUsdc": 0.01,
+    "chain": "ARC-TESTNET"
+  },
+  {
+    "type": "markets",
+    "name": "Puls Market Snapshot",
+    "endpoint": "https://api.pulsmarket.tech/api/x402/markets",
+    "priceUsdc": 0.01,
+    "chain": "ARC-TESTNET"
+  }
+]

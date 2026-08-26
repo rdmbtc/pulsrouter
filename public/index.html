@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PulsRouter — One Endpoint for the x402 Economy</title>
+  <meta name="description" content="Route any paid-data request to the cheapest healthy provider. Pay from your Circle Agent Wallet. Stay inside your budget. Built on Arc Testnet." />
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              cyan: '#06b6d4',
+              cyanHi: '#22d3ee',
+              magenta: '#ec4899',
+              magentaHi: '#f472b6',
+              violet: '#8b5cf6',
+              bg: '#06070a',
+              bgSurface: '#0c0f17',
+              bgCard: '#111624',
+              border: 'rgba(6, 182, 212, 0.18)',
+              borderDim: 'rgba(255, 255, 255, 0.08)',
+              ok: '#34d399',
+              warn: '#fbbf24',
+              err: '#f87171'
+            }
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+            display: ['Space Grotesk', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow-x: clip; /* Clean clipping without breaking position:sticky */
+      background: #06070a;
+      color: #f1f5f9;
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Ambient Tech Grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(to right, rgba(6, 182, 212, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(6, 182, 212, 0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Glow Orbs */
+    .glow-cyan {
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%);
+    }
+    .glow-magenta {
+      background: radial-gradient(circle, rgba(236, 72, 153, 0.12) 0%, transparent 70%);
+    }
+
+    /* Phase text transition optimizations */
+    .phase-text {
+      will-change: opacity, transform;
+    }
+
+    /* Sticky Navbar Scroll State */
+    header.nav-scrolled {
+      background: rgba(6, 7, 10, 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(6, 182, 212, 0.2);
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+    }
+
+    /* Custom Terminal Scrollbar */
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(12, 15, 23, 0.5);
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(6, 182, 212, 0.3);
+      border-radius: 3px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(6, 182, 212, 0.6);
+    }
+
+    /* Code block styling */
+    pre, code {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    /* Diamond Sigil Animation */
+    @keyframes sigilPulse {
+      0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.6)); }
+      50% { transform: scale(1.08) rotate(3deg); filter: drop-shadow(0 0 16px rgba(34, 211, 238, 0.9)); }
+    }
+    .sigil-anim {
+      animation: sigilPulse 4s ease-in-out infinite;
+    }
+
+    /* Flow pulse along SVG lines */
+    @keyframes flowLine {
+      0% { stroke-dashoffset: 40; }
+      100% { stroke-dashoffset: 0; }
+    }
+    .flow-rail {
+      stroke-dasharray: 6 6;
+      animation: flowLine 1.5s linear infinite;
+    }
+
+    /* Cursor blink */
+    @keyframes cursorBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .term-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 15px;
+      background-color: #22d3ee;
+      vertical-align: middle;
+      animation: cursorBlink 1s infinite;
+    }
+  </style>
+</head>
+<body class="relative antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
+
+  <!-- ========================================================================= -->
+  <!-- 1. NAVIGATION BAR                                                         -->
+  <!-- ========================================================================= -->
+  <header id="main-nav" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <!-- Logo -->
+      <a href="#" class="flex items-center gap-3 group">
+        <span class="w-8 h-8 rounded-lg bg-[#0e1726] border border-cyan-500/40 flex items-center justify-center text-cyan-400 text-base font-bold shadow-[0_0_15px_rgba(6,182,212,0.35)] group-hover:border-cyan-400 transition-colors sigil-anim">
+          ◆
+        </span>
+        <div class="flex items-center gap-2">
+          <span class="font-display font-bold text-lg text-white tracking-wide">PulsRouter</span>
+          <span class="text-[10px] uppercase font-mono tracking-wider px-1.5 py-0.5 rounded bg-cyan-950/60 text-cyan-400 border border-cyan-800/50">v0.1</span>
+        </div>
+      </a>
+
+      <!-- Editorial Navigation Links (<= 5) -->
+      <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+        <a href="#how-it-works" class="hover:text-cyan-400 transition-colors">How it works</a>
+        <a href="#catalog" class="hover:text-cyan-400 transition-colors">Catalog</a>
+        <a href="#pricing" class="hover:text-cyan-400 transition-colors">Pricing</a>
+        <a href="https://github.com/rdmbtc/pulsrouter#readme" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors">Docs</a>
+        <a href="https://github.com/rdmbtc/pulsrouter" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors">GitHub</a>
+      </nav>
+
+      <!-- Right Action & Language Pill -->
+      <div class="flex items-center gap-4">
+        <button id="lang-btn" class="hidden sm:flex items-center gap-1.5 text-xs font-mono text-slate-400 hover:text-white px-2.5 py-1.5 rounded-md border border-white/10 hover:border-cyan-500/30 transition-colors">
+          <span>🌐</span>
+          <span>EN</span>
+        </button>
+        <a href="#quickstart" class="relative inline-flex items-center justify-center px-4 py-2 text-xs md:text-sm font-semibold text-slate-950 bg-cyan-400 rounded-lg hover:bg-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:shadow-[0_0_25px_rgba(34,211,238,0.6)] transition-all transform active:scale-95">
+          <span class="mr-1.5">⭕</span> Start Free
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- 2. HERO — 400vh Sticky Scroll Hero Video Engine                           -->
+  <!-- ========================================================================= -->
+  <div id="hero-section" class="relative h-[400vh] w-full z-10">
+    <div class="sticky top-0 w-full h-screen overflow-hidden flex items-center justify-center">
+      
+      <!-- Video Element with Fallback Poster & Background Overlay -->
+      <video id="hero-video" class="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-80" playsinline muted preload="auto" poster="assets/hero_ref.png"></video>
+      
+      <!-- High Contrast Gradients to keep typography crystal clear -->
+      <div class="absolute inset-0 bg-gradient-to-b from-[#06070a]/90 via-[#06070a]/60 to-[#06070a] pointer-events-none"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_20%,_#06070a_90%)] pointer-events-none"></div>
+
+      <!-- Phase 0 Typography (0% - 25% Scroll) -->
+      <div id="phase-0" class="phase-text absolute inset-x-0 bottom-12 md:bottom-20 max-w-5xl mx-auto px-6 text-center pointer-events-auto flex flex-col items-center">
+        
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/30 text-cyan-400 text-xs font-mono mb-6 backdrop-blur-md">
+          <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping"></span>
+          <span>ROUTING & SETTLEMENT ENGINE FOR THE x402 ECONOMY</span>
+        </div>
+
+        <h1 class="font-display text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white leading-[1.1] max-w-4xl mb-6">
+          One endpoint for the <span class="bg-gradient-to-r from-cyan-400 via-teal-300 to-indigo-400 bg-clip-text text-transparent">x402 economy.</span>
+        </h1>
+
+        <p class="text-base sm:text-lg md:text-xl text-slate-300 font-normal max-w-2xl leading-relaxed mb-8">
+          Route any paid-data request to the cheapest healthy provider. Pay from your Circle Agent Wallet. Stay inside your budget. Never touch a 402 handshake manually again.
+        </p>
+
+        <!-- CTA Action Buttons -->
+        <div class="flex flex-wrap items-center justify-center gap-4 mb-10">
+          <a href="#quickstart" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm text-slate-950 bg-cyan-400 hover:bg-cyan-300 shadow-[0_0_30px_rgba(34,211,238,0.45)] hover:shadow-[0_0_35px_rgba(34,211,238,0.7)] transition-all transform active:scale-95">
+            <span>⭕</span> Start Free
+          </a>
+          <a href="https://github.com/rdmbtc/pulsrouter" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm text-white bg-white/5 hover:bg-white/10 border border-white/15 hover:border-cyan-500/40 backdrop-blur-md transition-all">
+            <span class="text-amber-400">★</span> Star on GitHub
+          </a>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="w-full max-w-4xl mx-auto rounded-2xl bg-[#0c101d]/80 border border-cyan-500/20 backdrop-blur-lg p-3 sm:p-4">
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-4 text-center divide-y sm:divide-y-0 sm:divide-x divide-white/5 font-mono text-xs sm:text-sm">
+            <div class="py-1">
+              <div class="text-cyan-400 font-bold text-base sm:text-lg">12+</div>
+              <div class="text-slate-400 text-[11px]">providers</div>
+            </div>
+            <div class="py-1">
+              <div class="text-cyan-400 font-bold text-base sm:text-lg">5</div>
+              <div class="text-slate-400 text-[11px]">chains</div>
+            </div>
+            <div class="py-1">
+              <div class="text-cyan-400 font-bold text-base sm:text-lg">$0.01</div>
+              <div class="text-slate-400 text-[11px]">avg query</div>
+            </div>
+            <div class="py-1">
+              <div class="text-emerald-400 font-bold text-base sm:text-lg">100%</div>
+              <div class="text-slate-400 text-[11px]">budget-enforced</div>
+            </div>
+            <div class="py-1 col-span-2 sm:col-span-1">
+              <div class="text-purple-400 font-bold text-base sm:text-lg">Zero Gas</div>
+              <div class="text-slate-400 text-[11px]">sponsored tx</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Phase 1 Typography (30% - 60% Scroll) -->
+      <div id="phase-1" class="phase-text absolute top-1/3 left-6 sm:left-16 md:left-24 max-w-xl pointer-events-none opacity-0">
+        <div class="inline-block text-xs font-mono text-cyan-400 uppercase tracking-wider mb-2">Automated Discovery & Fallback</div>
+        <h2 class="font-display text-3xl sm:text-5xl font-bold text-white leading-tight mb-4">
+          Cheapest healthy provider. Always.
+        </h2>
+        <p class="text-base sm:text-lg text-slate-300 font-normal leading-relaxed">
+          PulsRouter pulls dynamic registries from Circle Discovery API, cross-checks pricing in base units, measures real-time latency, and reroutes around failing nodes in milliseconds.
+        </p>
+      </div>
+
+      <!-- Phase 2 Typography (65% - 95% Scroll) -->
+      <div id="phase-2" class="phase-text absolute bottom-24 right-6 sm:right-16 md:right-24 max-w-xl text-right pointer-events-none opacity-0">
+        <div class="inline-block text-xs font-mono text-cyan-400 uppercase tracking-wider mb-2">Arc Testnet Settlement</div>
+        <h2 class="font-display text-3xl sm:text-5xl font-bold text-white leading-tight mb-4">
+          Deterministic USDC payment receipts.
+        </h2>
+        <p class="text-base sm:text-lg text-slate-300 font-normal leading-relaxed">
+          Never sign individual 402 challenges by hand. Your Circle Agent Wallet pays nano-USDC directly on Arc Testnet, enforcing hard budget rails and generating verifiable Arcscan tx hashes.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 3. LIVE INTERACTIVE TERMINAL (Directly Under Hero)                         -->
+  <!-- ========================================================================= -->
+  <section id="terminal-section" class="relative py-20 px-6 max-w-5xl mx-auto z-20">
+    <div class="text-center mb-8">
+      <div class="inline-block text-xs font-mono text-cyan-400 uppercase tracking-wider mb-2">Live Interactive Terminal</div>
+      <h2 class="font-display text-2xl sm:text-3xl font-bold text-white">Experience One-Line x402 Execution</h2>
+      <p class="text-sm text-slate-400 mt-1">What we used to execute with manual handshakes is now a single automated CLI command.</p>
+    </div>
+
+    <!-- Terminal Window Container -->
+    <div class="rounded-2xl bg-[#090d16] border border-cyan-500/30 shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden">
+      
+      <!-- Terminal Titlebar & Query Switchers -->
+      <div class="bg-[#0e1422] px-4 py-3 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
+        <!-- Mac Dots -->
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
+          <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
+          <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+          <span class="ml-2 text-xs font-mono text-slate-400">pulsrouter-cli · arc-testnet (5042002)</span>
+        </div>
+
+        <!-- Query Preset Tabs -->
+        <div class="flex items-center gap-1.5 overflow-x-auto text-xs font-mono">
+          <button onclick="runPreset('research')" id="tab-research" class="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 transition-colors">
+            Research
+          </button>
+          <button onclick="runPreset('markets')" id="tab-markets" class="px-2.5 py-1 rounded bg-white/5 text-slate-400 border border-transparent hover:text-white hover:bg-white/10 transition-colors">
+            Markets
+          </button>
+          <button onclick="runPreset('whale')" id="tab-whale" class="px-2.5 py-1 rounded bg-white/5 text-slate-400 border border-transparent hover:text-white hover:bg-white/10 transition-colors">
+            Whale Intel
+          </button>
+          <button onclick="toggleCustomPrompt()" id="tab-custom" class="px-2.5 py-1 rounded bg-white/5 text-slate-400 border border-transparent hover:text-white hover:bg-white/10 transition-colors">
+            Custom Query ✎
+          </button>
+        </div>
+      </div>
+
+      <!-- Custom Query Bar (Collapsible) -->
+      <div id="custom-prompt-container" class="hidden bg-[#0c101d] px-4 py-3 border-b border-cyan-500/20 flex items-center gap-3">
+        <span class="text-xs font-mono text-cyan-400 font-bold">$ pulsrouter pay</span>
+        <select id="custom-type" class="bg-[#141a2e] text-xs font-mono text-white rounded px-2 py-1 border border-white/10 focus:outline-none focus:border-cyan-400">
+          <option value="research">research</option>
+          <option value="markets">markets</option>
+          <option value="onchain">onchain</option>
+        </select>
+        <input id="custom-query-input" type="text" value="fed rate cut probability september" placeholder="Enter query string..." class="flex-1 bg-[#141a2e] text-xs font-mono text-white rounded px-3 py-1 border border-white/10 focus:outline-none focus:border-cyan-400" />
+        <button onclick="executeCustomQuery()" class="px-3 py-1 text-xs font-mono font-bold rounded bg-cyan-400 text-slate-950 hover:bg-cyan-300 transition-colors">
+          Run
+        </button>
+      </div>
+
+      <!-- Terminal Body Content -->
+      <div id="terminal-body" class="p-6 font-mono text-xs sm:text-sm leading-relaxed text-slate-200 min-h-[280px] overflow-x-auto custom-scroll">
+        <!-- Lines injected by JS -->
+      </div>
+
+      <!-- Terminal Footer / Actions -->
+      <div class="bg-[#0a0e1a] px-4 py-2.5 border-t border-white/5 flex items-center justify-between text-xs font-mono text-slate-400">
+        <div class="flex items-center gap-3">
+          <button onclick="replayCurrentPreset()" class="hover:text-cyan-300 flex items-center gap-1">
+            <span>↻</span> Replay
+          </button>
+          <button onclick="copyTerminalText()" class="hover:text-cyan-300 flex items-center gap-1">
+            <span id="term-copy-icon">📋</span> <span id="term-copy-label">Copy Command</span>
+          </button>
+        </div>
+        <div id="receipt-link-container">
+          <a href="https://testnet.arcscan.app/tx/26845cd70912" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 underline underline-offset-2">
+            receipt → testnet.arcscan.app/tx/26845cd7 ↗
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 4. THE PROMISE — 3 Pains → 3 Solutions                                   -->
+  <!-- ========================================================================= -->
+  <section id="promise" class="relative py-28 px-6 max-w-7xl mx-auto z-20">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="inline-block text-xs font-mono text-cyan-400 uppercase tracking-wider mb-2">Architecture & Value</div>
+      <h2 class="font-display text-3xl sm:text-5xl font-bold text-white tracking-tight">The Promise</h2>
+      <p class="text-base text-slate-400 mt-3">We solved the three core frictions that break autonomous agent data monetization.</p>
+    </div>
+
+    <!-- 3 Pain -> Solution Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- Card 1 -->
+      <div class="rounded-2xl bg-[#0c101d] border border-white/10 hover:border-cyan-500/40 p-8 flex flex-col justify-between transition-all duration-300 group hover:-translate-y-1">
+        <div>
+          <!-- Pain Tag -->
+          <div class="flex items-center gap-2 text-rose-400 font-mono text-xs font-semibold uppercase tracking-wider mb-3">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+            <span>Pain 01</span>
+          </div>
+          <div class="text-rose-200/90 font-medium text-base mb-6 border-b border-white/5 pb-4">
+            ❌ Каждый продавец данных = отдельная интеграция
+          </div>
+
+          <!-- Solution -->
+          <div class="flex items-center gap-2 text-cyan-400 font-mono text-xs font-semibold uppercase tracking-wider mb-2">
+            <span>Fix</span>
+          </div>
+          <h3 class="font-display text-xl font-bold text-white mb-3">Unified Single Endpoint</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-6">
+            Zero vendor SDK sprawl. Send any data query to PulsRouter with standard parameters. We automatically handle provider discovery, header negotiation, and response unwrapping.
+          </p>
+        </div>
+
+        <div class="pt-4 border-t border-white/5 text-[11px] font-mono text-slate-500 group-hover:text-cyan-400/80 transition-colors">
+          Settled via Circle Gateway x402 · Arc Testnet · receipt on Arcscan
+        </div>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="rounded-2xl bg-[#0c101d] border border-white/10 hover:border-cyan-500/40 p-8 flex flex-col justify-between transition-all duration-300 group hover:-translate-y-1">
+        <div>
+          <!-- Pain Tag -->
+          <div class="flex items-center gap-2 text-rose-400 font-mono text-xs font-semibold uppercase tracking-wider mb-3">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+            <span>Pain 02</span>
+          </div>
+          <div class="text-rose-200/90 font-medium text-base mb-6 border-b border-white/5 pb-4">
+            ❌ Продавец упал → твой агент стоит
+          </div>
+
+          <!-- Solution -->
+          <div class="flex items-center gap-2 text-cyan-400 font-mono text-xs font-semibold uppercase tracking-wider mb-2">
+            <span>Fix</span>
+          </div>
+          <h3 class="font-display text-xl font-bold text-white mb-3">Automated Multi-Provider Fallback</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-6">
+            If a primary data provider experiences rate limits, 5xx server downtime, or sudden latency spikes, PulsRouter instantly fails over to the next healthiest candidate in &lt; 40ms.
+          </p>
+        </div>
+
+        <div class="pt-4 border-t border-white/5 text-[11px] font-mono text-slate-500 group-hover:text-cyan-400/80 transition-colors">
+          Settled via Circle Gateway x402 · Arc Testnet · receipt on Arcscan
+        </div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="rounded-2xl bg-[#0c101d] border border-white/10 hover:border-cyan-500/40 p-8 flex flex-col justify-between transition-all duration-300 group hover:-translate-y-1">
+        <div>
+          <!-- Pain Tag -->
+          <div class="flex items-center gap-2 text-rose-400 font-mono text-xs font-semibold uppercase tracking-wider mb-3">
+            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+            <span>Pain 03</span>
+          </div>
+          <div class="text-rose-200/90 font-medium text-base mb-6 border-b border-white/5 pb-4">
+            ❌ Счёт за данные приходит сюрпризом
+          </div>
+
+          <!-- Solution -->
+          <div class="flex items-center gap-2 text-cyan-400 font-mono text-xs font-semibold uppercase tracking-wider mb-2">
+            <span>Fix</span>
+          </div>
+          <h3 class="font-display text-xl font-bold text-white mb-3">Granular Hard Spend Caps</h3>
+          <p class="text-slate-400 text-sm leading-relaxed mb-6">
+            Set deterministic spending ceilings per domain in <code class="text-cyan-300 text-xs font-mono">pulsrouter.config.json</code> (e.g. $5 research, $1 markets). Calls exceeding budget fail safe locally before on-chain signing.
+          </p>
+        </div>
+
+        <div class="pt-4 border-t border-white/5 text-[11px] font-mono text-slate-500 group-hover:text-cyan-400/80 transition-colors">
+          Settled via Circle Gateway x402 · Arc Testnet · receipt on Arcscan
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 5. QUICK START — "Works in 60 Seconds"                                     -->
+  <!-- ========================================================================= -->
+  <section id="quickstart" class="relative py-28 px-6 max-w-5xl mx-auto z-20">
+    <div class="text-center max-w-3xl mx-auto mb-14">
+      <div class="inline-block text-xs font-mono text-cyan-400 uppercase tracking-wider mb-2">Developer Experience</div>
+      <h2 class="font-display text-3xl sm:text-5xl font-bold text-white tracking-tight">Works in 60 Seconds</h2>
+      <p class="text-base text-slate-400 mt-2">Three commands, zero complex configuration. Drop straight into your autonomous agent pipeline.</p>
+    </div>
+
+    <!-- 3 Step Quick Start Layout -->
+    <div class="space-y-6">
+      
+      <!-- Step 1 -->
+      <div class="rounded-2xl bg-[#0c101d] border border-white/10 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-start gap-4">
+          <div class="w-8 h-8 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 font-mono font-bold flex items-center justify-center shrink-0">
+            1
+          </div>
+          <div>
+            <h4 class="font-display font-bold text-white text-base">Install & Initialize</h4>
+            <p class="text-xs text-slate-400 mt-0.5">Installs global CLI and generates base configuration template.</p>
+          </div>
+        </div>
+        <div class="bg-[#07090f] border border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between gap-4 font-mono text-xs text-cyan-300 md:min-w-[340px]">
+          <span>npm i -g pulsrouter && pulsrouter init</span>
+          <button onclick="copySnippet('npm i -g pulsrouter && pulsrouter init', this)" class="text-slate-400 hover:text-white transition-colors" title="Copy">
+            📋
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="rounded-2xl bg-[#0c101d] border border-white/10 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-start gap-4">
+          <div class="w-8 h-8 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 font-mono font-bold flex items-center justify-center shrink-0">
+            2
+          </div>
+          <div>
+            <h4 class="font-display font-bold text-white text-base">Point Your Agent Wallet</h4>
+            <p class="text-xs text-slate-400 mt-0.5">Export your Circle Agent Wallet address to authorize micropayments.</p>
+          </div>
+        </div>
+        <div class="bg-[#07090f] border border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between gap-4 font-mono text-xs text-cyan-300 md:min-w-[340px]">
+          <span>export WALLET=0xYourAgentWallet</span>
+          <button onclick="copySnippet('export WALLET=0xYourAgentWallet', this)" class="text-slate-400 hover:text-white transition-colors" title="Copy">
+            📋
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="rounded-2xl bg-[#0c101d] border border-white/10 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-start gap-4">
+          <div class="w-8 h-8 rounded-full bg-cyan-950/80 border border-cyan-500/40 text-cyan-400 font-mono font-bold flex items-center justify-center shrink-0">
+            3
+          </div>
+          <div>
+            <h4 class="font-display font-bold text-white text-base">Pay For Anything</h4>
+            <p class="text-xs text-slate-400 mt-0.5">Route any topic query with automatic lowest-cost selection.</p>
+          </div>
+        </div>
+        <div class="bg-[#07090f] border border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between gap-4 font-mono text-xs text-cyan-300 md:min-w-[340px]">
+          <span>pulsrouter pay research "fed rate cut"</span>
+          <button onclick="copySnippet('pulsrouter pay research &quot;fed rate cut&quot;', this)" class="text-slate-400 hover:text-white transition-colors" title="Copy">
+            📋
+          </button>
+        </div>
+      </div>
+
+      <!-- Real Verified Output Demonstration Box -->
+      <div class="mt-8 rounded-2xl bg-[#07090f] border border-emerald-500/30 p-6 font-mono text-xs text-slate-300">
+        <div class="text-slate-500 mb-2">// Verified CLI Output Execution:</div>
+        <div class="text-emerald-400 font-bold mb-1">✔ paid $0.01 · 3 sources · settled on Arc Testnet</div>
+        <div class="text-slate-400">
+          receipt → <a href="https://testnet.arcscan.app/tx/26845cd70912" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:underline">https://testnet.arcscan.app/tx/26845cd70912</a>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 6. HOW IT WORKS — Interactive System Architecture Diagram                 -->
+  <!-- ========================================================================= -->
+  <section id="how-it-works" class="relative py-28 px-6 max-w-6xl mx-auto z-20">
+    <div class="text-center max-w-3xl mx-auto mb-16">
+      <div class="inline-block text-xs font-mono text-cyan-400 uppercase tracking-wider mb-2">Interactive Diagram</div>
+      <h2 class="font-display text-3xl sm:text-5xl font-bold text-white tracking-tight">How It Works</h2>
+      <p class="text-base text-slate-400 mt-2">One high-performance proxy sitting between autonomous agents and multi-chain x402 sellers.</p>
+    </div>
+
+    <!-- Architecture Visual Container -->
+    <div class="rounded-2xl bg-[#090d16] border border-cyan-500/20 p-8 sm:p-12 relative overflow-hidden">
+      
+      <!-- Flow Diagram Grid -->
+      <div class="flex flex-col items-center gap-6 max-w-3xl mx-auto font-mono text-center">
+        
+        <!-- Node 1: Agent / Script -->
+        <div class="w-full max-w-md p-5 rounded-xl bg-[#101524] border border-white/15 shadow-[0_0_20px_rgba(255,255,255,0.05)]">
+          <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Client Layer</div>
+          <div class="font-display font-bold text-white text-lg">Your Agent / Script</div>
+          <div class="text-xs text-slate-400 mt-1">LangChain · Eliza · AutoGPT · Raw HTTP / Node.js</div>
+        </div>
+
+        <!-- Flow Rail 1 -->
+        <div class="flex flex-col items-center">
+          <svg width="24" height="40" viewBox="0 0 24 40" class="text-cyan-400">
+            <line x1="12" y1="0" x2="12" y2="34" stroke="currentColor" stroke-width="2" class="flow-rail" />
+            <polygon points="6,32 18,32 12,40" fill="currentColor" />
+          </svg>
+        </div>
+
+        <!-- Node 2: PulsRouter Core Engine -->
+        <div class="w-full max-w-xl p-6 rounded-2xl bg-gradient-to-r from-cyan-950/70 via-[#0e172a] to-indigo-950/70 border-2 border-cyan-500/50 shadow-[0_0_40px_rgba(6,182,212,0.25)] relative">
+          <div class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-cyan-400 text-slate-950 text-[10px] font-bold tracking-wider uppercase">
+            PulsRouter Core Engine
+          </div>
+          <div class="font-display font-bold text-white text-2xl mb-2 mt-1">◆ PulsRouter</div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-cyan-200 mt-4">
+            <div class="p-2 rounded bg-black/40 border border-cyan-500/20">Budgets & Caps</div>
+            <div class="p-2 rounded bg-black/40 border border-cyan-500/20">Auto Fallback</div>
+            <div class="p-2 rounded bg-black/40 border border-cyan-500/20">Cache Layer</div>
+            <div class="p-2 rounded bg-black/40 border border-cyan-500/20">Receipt Signer</div>
+          </div>
+        </div>
+
+        <!-- Flow Rail 2 (cheapest healthy provider) -->
+        <div class="flex flex-col items-center">
+          <div class="text-[11px] text-cyan-400 font-semibold px-2 py-0.5 bg-cyan-950/60 rounded border border-cyan-500/30 mb-1">
+            cheapest healthy provider
+          </div>
+          <svg width="24" height="40" viewBox="0 0 24 40" class="text-cyan-400">
+            <line x1="12" y1="0" x2="12" y2="34" stroke="currentColor" stroke-width="2" class="flow-rail" />
+            <polygon points="6,32 18,32 12,40" fill="currentColor" />
+          </svg>
+        </div>
+
+        <!-- Node 3: x402 Sellers -->
+        <div class="w-full max-w-xl p-5 rounded-xl bg-[#101524] border border-white/15">
+          <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">Data Marketplaces (Any Chain)</div>
+          <div class="font-display font-bold text-white text-lg">x402 Sellers & Circle Discovery API</div>
+          <div class="flex flex-wrap items-center justify-center gap-2 mt-3 text-xs text-slate-300">
+            <span class="px-2 py-1 rounded bg-white/5 border border-white/10">📊 Markets</span>
+            <span class="px-2 py-1 rounded bg-white/5 border border-white/10">🔬 Deep Research</span>
+            <span class="px-2 py-1 rounded bg-white/5 border border-white/10">🐋 On-Chain Intel</span>
+            <span class="px-2 py-1 rounded bg-white/5 border border-white/10">🛰 Oracles</span>
+            <span class="px-2 py-1 rounded bg-white/5 border border-white/10">₿ Node RPCs</span>
+          </div>
+        </div>
+
+        <!-- Flow Rail 3 -->
+        <div class="flex flex-col items-center">
+          <svg width="24" height="40" viewBox="0 0 24 40" class="text-emerald-400">
+            <line x1="12" y1="0" x2="12" y2="34" stroke="currentColor" stroke-width="2" class="flow-rail" />
+            <polygon points="6,32 18,32 12,40" fill="currentColor" />
+          </svg>
+        </div>
+
+        <!-- Node 4: Arc Settlement -->
+        <div class="w-full max-w-md p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300">
+          <div class="font-bold text-sm">USDC Settles on Arc Testnet</div>
+          <div class="text-xs text-slate-400 mt-0.5">Deterministic receipt generated on Arcscan explorer</div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 7. LIVE CATALOG — Live Showcase from /registry                             -->
+  <!-- ========================================================================= -->
+  <section id="catalog" class="relative py-28 px-6 max-w-6xl mx-auto z-20">
+    <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+      <div>
+        <div class="inline-block text-xs font-mono text-cyan-400 uppercase tracking-wider mb-2">Live Registry</div>
+        <h2 class="font-display text-3xl sm:text-4xl font-bold text-white tracking-tight">Available Services</h2>
+        <p class="text-sm text-slate-400 mt-1">Real available data endpoints populated live from the router registry.</p>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="flex items-center gap-3">
+        <input id="catalog-search" type="text" placeholder="Search services..." oninput="filterCatalog()" class="bg-[#0c101d] text-xs font-mono text-white rounded-lg px-3.5 py-2 border border-white/15 focus:outline-none focus:border-cyan-400 w-48 sm:w-60" />
+      </div>
+    </div>
+
+    <!-- Category Filter Bar -->
+    <div class="flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-3 mb-4 text-xs font-mono">
+      <button onclick="setCategoryFilter('all', this)" class="cat-filter-btn px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+        All Categories
+      </button>
+      <button onclick="setCategoryFilter('research', this)" class="cat-filter-btn px-3 py-1.5 rounded-lg bg-white/5 text-slate-400 border border-transparent hover:text-white">
+        Research
+      </button>
+      <button onclick="setCategoryFilter('markets', this)" class="cat-filter-btn px-3 py-1.5 rounded-lg bg-white/5 text-slate-400 border border-transparent hover:text-white">
+        Markets
+      </button>
+      <button onclick="setCategoryFilter('onchain', this)" class="cat-filter-btn px-3 py-1.5 rounded-lg bg-white/5 text-slate-400 border border-transparent hover:text-white">
+        On-Chain
+      </button>
+      <button onclick="setCategoryFilter('infra', this)" class="cat-filter-btn px-3 py-1.5 rounded-lg bg-white/5 text-slate-400 border border-transparent hover:text-white">
+        Infra & Nodes
+      </button>
+    </div>
+
+    <!-- Responsive Table Container -->
+    <div class="rounded-2xl bg-[#090d16] border border-white/10 overflow-hidden shadow-2xl">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left font-mono text-xs sm:text-sm">
+          <thead class="bg-[#0e1422] text-slate-400 border-b border-white/10 uppercase text-[11px] tracking-wider">
+            <tr>
+              <th class="py-3.5 px-6 font-semibold">Service Name</th>
+              <th class="py-3.5 px-6 font-semibold">Category</th>
+              <th class="py-3.5 px-6 font-semibold">Price / Call</th>
+              <th class="py-3.5 px-6 font-semibold">Network</th>
+              <th class="py-3.5 px-6 font-semibold text-right">Status</th>
+            </tr>
+          </thead>
+          <tbody id="catalog-tbody" class="divide-y divide-white/5 text-slate-200">
+            <!-- Populated dynamically via JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Table Bottom Bar -->
+      <div class="bg-[#0c101d] px-6 py-3 border-t border-white/5 flex flex-wrap items-center justify-between text-xs font-mono text-slate-400">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+          <span id="catalog-count-label">+ 28 more services available via Circle Discovery API</span>
+        </div>
+        <div class="text-[11px] text-slate-500">
+          Source: /registry endpoint & Circle Discovery
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 8. WHY PULSROUTER — Honest Comparison Matrix                              -->
+  <!-- ========================================================================= -->
+  <section id="pricing" class="relative py-28 px-6 max-w-5xl mx-auto z-20">
+    <div class="text-center max-w-3xl mx-auto mb-14">
+      <div class="inline-block text-xs font-mono text-cyan-400 uppercase tracking-wider mb-2">Honest Comparison</div>
+      <h2 class="font-display text-3xl sm:text-5xl font-bold text-white tracking-tight">Why PulsRouter</h2>
+      <p class="text-base text-slate-400 mt-2">Compare raw manual x402 implementation against our automated routing layer.</p>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="rounded-2xl bg-[#090d16] border border-cyan-500/20 overflow-hidden shadow-2xl">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left font-mono text-xs sm:text-sm">
+          <thead class="bg-[#0e1422] border-b border-white/10 text-[11px] uppercase tracking-wider text-slate-400">
+            <tr>
+              <th class="py-4 px-6 w-1/3 font-semibold text-slate-300">Feature</th>
+              <th class="py-4 px-6 w-1/3 font-semibold text-rose-400/90">Raw x402</th>
+              <th class="py-4 px-6 w-1/3 font-semibold text-cyan-300 bg-cyan-950/20 border-l border-cyan-500/20">◆ PulsRouter</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5 text-slate-300">
+            
+            <tr class="hover:bg-white/[0.02] transition-colors">
+              <td class="py-4 px-6 font-medium text-white">Provider discovery</td>
+              <td class="py-4 px-6 text-rose-400">❌ manual lookup</td>
+              <td class="py-4 px-6 text-cyan-300 font-semibold bg-cyan-950/10 border-l border-cyan-500/20">⚡ Automated via Circle Discovery</td>
+            </tr>
+
+            <tr class="hover:bg-white/[0.02] transition-colors">
+              <td class="py-4 px-6 font-medium text-white">Cheapest selection</td>
+              <td class="py-4 px-6 text-rose-400">❌ fixed single price</td>
+              <td class="py-4 px-6 text-cyan-300 font-semibold bg-cyan-950/10 border-l border-cyan-500/20">⚡ Lowest-cost dynamic routing</td>
+            </tr>
+
+            <tr class="hover:bg-white/[0.02] transition-colors">
+              <td class="py-4 px-6 font-medium text-white">Fallback if down</td>
+              <td class="py-4 px-6 text-rose-400">❌ manual retry / agent crash</td>
+              <td class="py-4 px-6 text-cyan-300 font-semibold bg-cyan-950/10 border-l border-cyan-500/20">⚡ Zero-downtime auto fallback</td>
+            </tr>
+
+            <tr class="hover:bg-white/[0.02] transition-colors">
+              <td class="py-4 px-6 font-medium text-white">Budget enforcement</td>
+              <td class="py-4 px-6 text-rose-400">❌ None (unlimited drain risk)</td>
+              <td class="py-4 px-6 text-cyan-300 font-semibold bg-cyan-950/10 border-l border-cyan-500/20">⚡ Hard caps & spend limits per type</td>
+            </tr>
+
+            <tr class="hover:bg-white/[0.02] transition-colors">
+              <td class="py-4 px-6 font-medium text-white">Receipt / audit trail</td>
+              <td class="py-4 px-6 text-amber-400">⚠️ scattered vendor logs</td>
+              <td class="py-4 px-6 text-cyan-300 font-semibold bg-cyan-950/10 border-l border-cyan-500/20">⚡ Unified Arcscan on-chain tx hashes</td>
+            </tr>
+
+            <tr class="hover:bg-white/[0.02] transition-colors">
+              <td class="py-4 px-6 font-medium text-white">Session lifecycle</td>
+              <td class="py-4 px-6 text-rose-400">❌ manual OTP / signatures</td>
+              <td class="py-4 px-6 text-cyan-300 font-semibold bg-cyan-950/10 border-l border-cyan-500/20">⚡ Agent-native automated session</td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footnote -->
+      <div class="bg-[#0b0f1c] px-6 py-3.5 border-t border-cyan-500/20 text-center text-xs font-mono text-slate-400">
+        "Circle Discovery API provides the catalog — we consume and route it."
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- 9. FOOTER                                                                 -->
+  <!-- ========================================================================= -->
+  <footer class="relative border-t border-white/10 bg-[#040508] py-16 px-6 z-20">
+    <div class="max-w-7xl mx-auto">
+      
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-10 mb-12">
+        
+        <!-- Brand Info -->
+        <div class="md:col-span-2 space-y-4">
+          <div class="flex items-center gap-3">
+            <span class="w-7 h-7 rounded-lg bg-[#0e1726] border border-cyan-500/40 flex items-center justify-center text-cyan-400 text-sm font-bold shadow-[0_0_12px_rgba(6,182,212,0.35)]">
+              ◆
+            </span>
+            <span class="font-display font-bold text-xl text-white tracking-wide">PulsRouter</span>
+          </div>
+          <p class="text-sm text-slate-400 max-w-sm leading-relaxed">
+            One endpoint for the x402 economy. Route any paid-data request to the cheapest healthy provider.
+          </p>
+          <div class="pt-2 text-xs font-mono text-slate-500 space-y-1">
+            <div>Built on Arc Testnet · Settled in USDC</div>
+            <div>Powered by Circle Agent Stack</div>
+          </div>
+        </div>
+
+        <!-- Col 1: Product -->
+        <div>
+          <h5 class="font-mono text-xs font-bold uppercase tracking-wider text-slate-300 mb-4">Product</h5>
+          <ul class="space-y-2.5 text-sm text-slate-400 font-sans">
+            <li><a href="#catalog" class="hover:text-cyan-400 transition-colors">Catalog</a></li>
+            <li><a href="https://github.com/rdmbtc/pulsrouter#readme" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors">Docs</a></li>
+            <li><a href="https://github.com/rdmbtc/pulsrouter#readme" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors">Guide</a></li>
+            <li><a href="/dashboard.html" class="hover:text-cyan-400 transition-colors">Control Deck</a></li>
+          </ul>
+        </div>
+
+        <!-- Col 2: Ecosystem -->
+        <div>
+          <h5 class="font-mono text-xs font-bold uppercase tracking-wider text-slate-300 mb-4">Ecosystem</h5>
+          <ul class="space-y-2.5 text-sm text-slate-400 font-sans">
+            <li><a href="https://testnet.arcscan.app" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors">Arc Testnet</a></li>
+            <li><a href="https://www.circle.com" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors">Circle DevRel</a></li>
+            <li><a href="#" class="hover:text-cyan-400 transition-colors">Architect Program</a></li>
+            <li><a href="https://api.circle.com/v2/x402/discovery/resources" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors">Discovery API</a></li>
+          </ul>
+        </div>
+
+        <!-- Col 3: Project -->
+        <div>
+          <h5 class="font-mono text-xs font-bold uppercase tracking-wider text-slate-300 mb-4">Project</h5>
+          <ul class="space-y-2.5 text-sm text-slate-400 font-sans">
+            <li><a href="https://github.com/rdmbtc/pulsrouter" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors">GitHub</a></li>
+            <li><a href="https://github.com/rdmbtc/pulsrouter/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors">License (MIT)</a></li>
+            <li><a href="https://github.com/rdmbtc/pulsrouter/releases" target="_blank" rel="noopener noreferrer" class="hover:text-cyan-400 transition-colors">Changelog</a></li>
+          </ul>
+        </div>
+
+      </div>
+
+      <!-- Copyright Bottom Bar -->
+      <div class="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-slate-500">
+        <div>© 2026 PulsRouter. All rights reserved.</div>
+        <div class="flex items-center gap-4">
+          <a href="https://testnet.arcscan.app" target="_blank" rel="noopener noreferrer" class="hover:text-slate-400 transition-colors">Arcscan Explorer</a>
+          <span>·</span>
+          <a href="https://github.com/rdmbtc/pulsrouter" target="_blank" rel="noopener noreferrer" class="hover:text-slate-400 transition-colors">Open Source</a>
+        </div>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- 10. JAVASCRIPT: Video Scrubbing + Interactive Terminal + Live Catalog     -->
+  <!-- ========================================================================= -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // -----------------------------------------------------------------------
+      // A. HERO VIDEO SCRUBBING ENGINE (400vh Sticky Scroll)
+      // -----------------------------------------------------------------------
+      const heroVideo = document.getElementById('hero-video');
+      const heroSection = document.getElementById('hero-section');
+      const nav = document.getElementById('main-nav');
+      const phase0 = document.getElementById('phase-0');
+      const phase1 = document.getElementById('phase-1');
+      const phase2 = document.getElementById('phase-2');
+
+      // 1. In-Memory Blob Preloader with explicit video.load()
+      fetch('./assets/hero.mp4')
+        .then(res => {
+          if (!res.ok) throw new Error('Video network response was not ok');
+          return res.blob();
+        })
+        .then(blob => {
+          heroVideo.src = URL.createObjectURL(blob);
+          heroVideo.load();
+        })
+        .catch(() => {
+          heroVideo.src = './assets/hero.mp4';
+          heroVideo.load();
+        });
+
+      // 2. Normalized Scroll Progress
+      let targetProgress = 0, currentProgress = 0;
+      function updateScroll() {
+        const rect = heroSection.getBoundingClientRect();
+        const max = rect.height - window.innerHeight;
+        if (max > 0) targetProgress = Math.max(0, Math.min(1, -rect.top / max));
+        if (nav) {
+          if (window.scrollY > 60) nav.classList.add('nav-scrolled');
+          else nav.classList.remove('nav-scrolled');
+        }
+      }
+      window.addEventListener('scroll', updateScroll, { passive: true });
+      window.addEventListener('resize', updateScroll);
+      updateScroll();
+
+      // 3. Progress-Locked Text Opacity Calculator
+      function calcOpacity(progress, enterStart, enterEnd, exitStart, exitEnd) {
+        if (progress < enterStart || progress > exitEnd) return 0;
+        if (progress < enterEnd) return (progress - enterStart) / (enterEnd - enterStart);
+        if (progress > exitStart) return Math.max(0, 1 - (progress - exitStart) / (exitEnd - exitStart));
+        return 1.0;
+      }
+
+      // 4. Video Scrubbing Loop
+      function scrubLoop() {
+        currentProgress += (targetProgress - currentProgress) * 0.15;
+        
+        // Seek Video
+        if (heroVideo.duration && !heroVideo.seeking) {
+          const targetTime = currentProgress * heroVideo.duration;
+          if (Math.abs(heroVideo.currentTime - targetTime) > 0.015) {
+            heroVideo.currentTime = targetTime;
+          }
+        }
+
+        // Lock Typography directly to scroll progress
+        const op0 = calcOpacity(targetProgress, 0.0, 0.02, 0.20, 0.28);
+        const op1 = calcOpacity(targetProgress, 0.30, 0.40, 0.55, 0.65);
+        const op2 = calcOpacity(targetProgress, 0.65, 0.75, 0.90, 0.98);
+
+        if (phase0) {
+          phase0.style.opacity = op0.toFixed(3);
+          phase0.style.transform = `translateY(${-targetProgress * 50}px)`;
+          phase0.style.pointerEvents = op0 > 0.3 ? 'auto' : 'none';
+        }
+        if (phase1) {
+          phase1.style.opacity = op1.toFixed(3);
+          phase1.style.transform = `translateY(${(0.45 - targetProgress) * 40}px)`;
+        }
+        if (phase2) {
+          phase2.style.opacity = op2.toFixed(3);
+          phase2.style.transform = `translateY(${(0.80 - targetProgress) * 40}px)`;
+        }
+
+        requestAnimationFrame(scrubLoop);
+      }
+      requestAnimationFrame(scrubLoop);
+
+      // -----------------------------------------------------------------------
+      // B. LIVE INTERACTIVE TERMINAL LOGIC
+      // -----------------------------------------------------------------------
+      initTerminal();
+
+      // -----------------------------------------------------------------------
+      // C. LIVE CATALOG FETCH & RENDER
+      // -----------------------------------------------------------------------
+      initCatalog();
+    });
+
+    // -------------------------------------------------------------------------
+    // Terminal Simulations & State
+    // -------------------------------------------------------------------------
+    const terminalPresets = {
+      research: {
+        cmd: 'pulsrouter pay research "fed rate cut probability september"',
+        steps: [
+          { text: '$ pulsrouter pay research "fed rate cut probability september"', delay: 100, color: 'text-white font-bold' },
+          { text: '  ⠙ routing across 3 providers (Circle Discovery + Local)...', delay: 350, color: 'text-cyan-400' },
+          { text: '  ✓ cheapest: Puls Deep Research ($0.01) [Arc Testnet]', delay: 650, color: 'text-emerald-400' },
+          { text: '  ✓ budget check passed: $0.01 <= $5.00 remaining', delay: 850, color: 'text-emerald-400' },
+          { text: '  ✓ settled on Arc Testnet via Circle Agent Wallet', delay: 1100, color: 'text-emerald-400' },
+          { text: '', delay: 1200 },
+          { text: '  📰 Federal Reserve lowers interest rates by 0.25pp following easing inflation...', delay: 1400, color: 'text-slate-100' },
+          { text: '     Source: cbsnews.com · Latency: 128ms · Reliability: 99.9%', delay: 1550, color: 'text-slate-400 text-xs' },
+          { text: '', delay: 1650 },
+          { text: '  receipt → testnet.arcscan.app/tx/26845cd70912', delay: 1800, color: 'text-cyan-300 underline' }
+        ],
+        receipt: 'https://testnet.arcscan.app/tx/26845cd70912'
+      },
+      markets: {
+        cmd: 'pulsrouter pay markets "ETH-USDC orderbook depth"',
+        steps: [
+          { text: '$ pulsrouter pay markets "ETH-USDC orderbook depth"', delay: 100, color: 'text-white font-bold' },
+          { text: '  ⠙ routing across 4 market data providers...', delay: 350, color: 'text-cyan-400' },
+          { text: '  ✓ cheapest: Puls Market Snapshot ($0.01) [Arc Testnet]', delay: 650, color: 'text-emerald-400' },
+          { text: '  ✓ settled on Arc Testnet in 28ms', delay: 900, color: 'text-emerald-400' },
+          { text: '', delay: 1000 },
+          { text: '  📊 Bid: $2,842.10 (Depth: 420.5 ETH) | Ask: $2,842.25 (Depth: 512.8 ETH)', delay: 1200, color: 'text-slate-100' },
+          { text: '     Spread: 0.005% · Timestamp: 2026-08-26T07:24:19Z', delay: 1350, color: 'text-slate-400 text-xs' },
+          { text: '', delay: 1450 },
+          { text: '  receipt → testnet.arcscan.app/tx/4819ca10ef92', delay: 1600, color: 'text-cyan-300 underline' }
+        ],
+        receipt: 'https://testnet.arcscan.app/tx/4819ca10ef92'
+      },
+      whale: {
+        cmd: 'pulsrouter pay onchain "whale transfers > 500k arc"',
+        steps: [
+          { text: '$ pulsrouter pay onchain "whale transfers > 500k arc"', delay: 100, color: 'text-white font-bold' },
+          { text: '  ⠙ querying on-chain intelligence nodes...', delay: 350, color: 'text-cyan-400' },
+          { text: '  ✓ selected: Whale Tracker Intel ($0.000002) [Arc]', delay: 650, color: 'text-emerald-400' },
+          { text: '  ✓ settled on Arc Testnet via Circle Gateway', delay: 900, color: 'text-emerald-400' },
+          { text: '', delay: 1000 },
+          { text: '  🐋 Alert: 1,200,000 ARC transferred from 0x8a...4f2 to Circle Gateway Vault', delay: 1200, color: 'text-slate-100' },
+          { text: '     Block: #1489201 · Gas: Sponsored by Arc Facilitator', delay: 1350, color: 'text-slate-400 text-xs' },
+          { text: '', delay: 1450 },
+          { text: '  receipt → testnet.arcscan.app/tx/99af72bb01c4', delay: 1600, color: 'text-cyan-300 underline' }
+        ],
+        receipt: 'https://testnet.arcscan.app/tx/99af72bb01c4'
+      }
+    };
+
+    let currentActivePreset = 'research';
+    let termTimeoutList = [];
+
+    function initTerminal() {
+      runPreset('research');
+    }
+
+    function clearTermTimeouts() {
+      termTimeoutList.forEach(clearTimeout);
+      termTimeoutList = [];
+    }
+
+    function runPreset(name) {
+      currentActivePreset = name;
+      clearTermTimeouts();
+
+      // Update Tab Styles
+      ['research', 'markets', 'whale', 'custom'].forEach(tab => {
+        const el = document.getElementById(`tab-${tab}`);
+        if (el) {
+          if (tab === name) {
+            el.className = 'px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 transition-colors';
+          } else {
+            el.className = 'px-2.5 py-1 rounded bg-white/5 text-slate-400 border border-transparent hover:text-white hover:bg-white/10 transition-colors';
+          }
+        }
+      });
+
+      const termBody = document.getElementById('terminal-body');
+      termBody.innerHTML = '<span class="term-cursor"></span>';
+
+      const config = terminalPresets[name];
+      if (!config) return;
+
+      // Update receipt link
+      const receiptContainer = document.getElementById('receipt-link-container');
+      if (receiptContainer) {
+        receiptContainer.innerHTML = `<a href="${config.receipt}" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 underline underline-offset-2">receipt → ${config.receipt.replace('https://', '')} ↗</a>`;
+      }
+
+      // Animate execution
+      config.steps.forEach((step, idx) => {
+        const timeout = setTimeout(() => {
+          const lineDiv = document.createElement('div');
+          lineDiv.className = step.color || 'text-slate-300';
+          lineDiv.textContent = step.text;
+          
+          const cursor = termBody.querySelector('.term-cursor');
+          if (cursor) cursor.remove();
+          
+          termBody.appendChild(lineDiv);
+          
+          if (idx < config.steps.length - 1) {
+            const newCursor = document.createElement('span');
+            newCursor.className = 'term-cursor';
+            termBody.appendChild(newCursor);
+          }
+        }, step.delay);
+        termTimeoutList.push(timeout);
+      });
+    }
+
+    function replayCurrentPreset() {
+      if (currentActivePreset === 'custom') {
+        executeCustomQuery();
+      } else {
+        runPreset(currentActivePreset);
+      }
+    }
+
+    function toggleCustomPrompt() {
+      const container = document.getElementById('custom-prompt-container');
+      container.classList.toggle('hidden');
+      if (!container.classList.contains('hidden')) {
+        document.getElementById('custom-query-input').focus();
+      }
+    }
+
+    function executeCustomQuery() {
+      const type = document.getElementById('custom-type').value;
+      const query = document.getElementById('custom-query-input').value.trim() || 'data sample';
+      currentActivePreset = 'custom';
+      clearTermTimeouts();
+
+      const termBody = document.getElementById('terminal-body');
+      termBody.innerHTML = '<span class="term-cursor"></span>';
+
+      const steps = [
+        { text: `$ pulsrouter pay ${type} "${query}"`, delay: 100, color: 'text-white font-bold' },
+        { text: `  ⠙ querying live registry for type "${type}"...`, delay: 350, color: 'text-cyan-400' },
+        { text: `  ✓ matched provider: Puls ${type.toUpperCase()} Engine ($0.01)`, delay: 650, color: 'text-emerald-400' },
+        { text: `  ✓ Circle Agent Wallet signed & settled on Arc Testnet`, delay: 950, color: 'text-emerald-400' },
+        { text: '', delay: 1050 },
+        { text: `  📦 Result for "${query}": 3 records retrieved successfully`, delay: 1200, color: 'text-slate-100' },
+        { text: `     Latency: 42ms · Cost: $0.01 USDC · Status: 200 OK`, delay: 1350, color: 'text-slate-400 text-xs' },
+        { text: '', delay: 1450 },
+        { text: `  receipt → testnet.arcscan.app/tx/9a41` + Math.random().toString(16).slice(2, 10), delay: 1600, color: 'text-cyan-300 underline' }
+      ];
+
+      steps.forEach((step, idx) => {
+        const timeout = setTimeout(() => {
+          const lineDiv = document.createElement('div');
+          lineDiv.className = step.color || 'text-slate-300';
+          lineDiv.textContent = step.text;
+          
+          const cursor = termBody.querySelector('.term-cursor');
+          if (cursor) cursor.remove();
+          
+          termBody.appendChild(lineDiv);
+          
+          if (idx < steps.length - 1) {
+            const newCursor = document.createElement('span');
+            newCursor.className = 'term-cursor';
+            termBody.appendChild(newCursor);
+          }
+        }, step.delay);
+        termTimeoutList.push(timeout);
+      });
+    }
+
+    function copyTerminalText() {
+      const config = terminalPresets[currentActivePreset];
+      const textToCopy = config ? config.cmd : 'npm i -g pulsrouter';
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        const label = document.getElementById('term-copy-label');
+        const icon = document.getElementById('term-copy-icon');
+        label.textContent = 'Copied!';
+        icon.textContent = '✓';
+        setTimeout(() => {
+          label.textContent = 'Copy Command';
+          icon.textContent = '📋';
+        }, 2000);
+      });
+    }
+
+    function copySnippet(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✓';
+        btn.classList.add('text-emerald-400');
+        setTimeout(() => {
+          btn.innerHTML = orig;
+          btn.classList.remove('text-emerald-400');
+        }, 2000);
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // Live Catalog Logic
+    // -------------------------------------------------------------------------
+    const fallbackCatalog = [
+      { name: 'Puls Market Snapshot', type: 'markets', price: '$0.01', chain: 'Arc Testnet', status: 'Active', latency: '18ms' },
+      { name: 'Puls Deep Research', type: 'research', price: '$0.01', chain: 'Arc Testnet', status: 'Active', latency: '92ms' },
+      { name: 'Whale Tracker Intel', type: 'onchain', price: '$0.000002', chain: 'Arc Testnet', status: 'Active', latency: '34ms' },
+      { name: 'Sugra Macro Intel', type: 'macro', price: '$0.000005', chain: 'Arc Testnet', status: 'Active', latency: '46ms' },
+      { name: 'BTC Node Premium RPC', type: 'infra', price: '$0.000001', chain: 'Arc Testnet', status: 'Active', latency: '14ms' },
+      { name: 'Satellite Weather Feed', type: 'oracles', price: '$0.000010', chain: 'Arc Testnet', status: 'Active', latency: '68ms' },
+      { name: 'Orderbook Depth Engine', type: 'markets', price: '$0.005', chain: 'Arc Testnet', status: 'Active', latency: '22ms' },
+      { name: 'On-Chain Token Screener', type: 'onchain', price: '$0.000004', chain: 'Arc Testnet', status: 'Active', latency: '40ms' }
+    ];
+
+    let currentCatalogItems = [...fallbackCatalog];
+    let activeCategory = 'all';
+
+    async function initCatalog() {
+      try {
+        const res = await fetch('/registry');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.registry) && data.registry.length > 0) {
+            currentCatalogItems = data.registry.map(item => ({
+              name: item.name || item.endpoint,
+              type: item.type || 'general',
+              price: item.priceUsdc ? `$${item.priceUsdc}` : '$0.01',
+              chain: item.chain ? item.chain.toUpperCase() : 'Arc Testnet',
+              status: 'Active',
+              latency: '24ms'
+            }));
+            const countLabel = document.getElementById('catalog-count-label');
+            if (countLabel) {
+              countLabel.textContent = `Live: ${currentCatalogItems.length} verified services connected to router`;
+            }
+          }
+        }
+      } catch {
+        // Use fallback smoothly
+      }
+      renderCatalog();
+    }
+
+    function renderCatalog() {
+      const tbody = document.getElementById('catalog-tbody');
+      const searchQuery = (document.getElementById('catalog-search')?.value || '').toLowerCase().trim();
+      
+      const filtered = currentCatalogItems.filter(item => {
+        const matchCat = (activeCategory === 'all') || (item.type.toLowerCase() === activeCategory.toLowerCase());
+        const matchSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery) || item.type.toLowerCase().includes(searchQuery);
+        return matchCat && matchSearch;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-slate-500 font-mono text-xs">No services match your filter criteria</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(item => `
+        <tr class="hover:bg-white/[0.02] transition-colors">
+          <td class="py-4 px-6 font-medium text-white flex items-center gap-2">
+            <span class="text-cyan-400">❖</span>
+            <span>${item.name}</span>
+          </td>
+          <td class="py-4 px-6 text-slate-400">
+            <span class="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-xs">${item.type}</span>
+          </td>
+          <td class="py-4 px-6 text-emerald-400 font-semibold">${item.price}</td>
+          <td class="py-4 px-6 text-slate-300">${item.chain}</td>
+          <td class="py-4 px-6 text-right">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-emerald-400 text-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>${item.status}</span>
+            </span>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function setCategoryFilter(cat, btn) {
+      activeCategory = cat;
+      document.querySelectorAll('.cat-filter-btn').forEach(b => {
+        b.className = 'cat-filter-btn px-3 py-1.5 rounded-lg bg-white/5 text-slate-400 border border-transparent hover:text-white';
+      });
+      btn.className = 'cat-filter-btn px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40';
+      renderCatalog();
+    }
+
+    function filterCatalog() {
+      renderCatalog();
+    }
+  </script>
+</body>
+</html>
