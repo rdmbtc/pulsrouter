@@ -77,7 +77,11 @@ function serveStatic(req, res, pathname) {
       'Content-Length': data.length,
       ...CORS_HEADERS,
     });
-    res.end(data);
+    if (req.method === 'HEAD') {
+      res.end();
+    } else {
+      res.end(data);
+    }
     return true;
   } catch {
     return false;
@@ -276,8 +280,8 @@ export function createServer(cfg, wallet = '') {
     }
     let pathname = '/';
     try { pathname = new URL(req.url || '/', 'http://localhost').pathname; } catch { /* keep '/' */ }
-    // serve static files first (GET only)
-    if (req.method === 'GET' && serveStatic(req, res, pathname)) return;
+    // serve static files first (GET or HEAD)
+    if ((req.method === 'GET' || req.method === 'HEAD') && serveStatic(req, res, pathname)) return;
     dispatch(req, pathname).then(
       (r) => send(res, r.status, r.body, r.headers),
       (e) => {
