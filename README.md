@@ -1,62 +1,112 @@
 <div align="center">
 
-# One endpoint for the x402 economy
+<img src="assets/logo.png" width="90" alt="PulsRouter Logo" />
 
-**PulsRouter** routes paid-data requests to the cheapest healthy provider, settles in USDC from your Circle Agent Wallet, and falls over automatically. You write zero payment code.
+# PulsRouter
+
+**One unified gateway for the x402 nanopayment economy.**
+
+Route paid-data requests to the cheapest healthy provider, settle in USDC on **Arc Testnet** via **Circle Agent Wallets** or direct **MetaMask Web3**, and fail over automatically. Zero payment boilerplate required.
+
+[![Tests](https://img.shields.io/badge/tests-54%20passed-brightgreen.svg)](https://github.com/rdmbtc/pulsrouter)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Network: Arc Testnet](https://img.shields.io/badge/network-Arc%20Testnet%20(5042002)-8A2BE2.svg)](https://testnet.arcscan.app)
+[![Live Control Deck](https://img.shields.io/badge/live-x402.pulsmarket.tech-ff2e93.svg)](https://x402.pulsmarket.tech/dashboard)
+
+[Live Control Deck](https://x402.pulsmarket.tech/dashboard) · [Landing Page](https://x402.pulsmarket.tech) · [API Documentation](docs/API.md) · [Guide](docs/guide.md) · [Budgets](docs/BUDGETS.md)
 
 </div>
 
-| ⬡ Providers | ⛓ Chains | 💸 Price | 🛡 Budgets |
+---
+
+| ⬡ Providers | ⛓ Chains | 💸 Settle In | 🛡 Budgets & Dual Rails |
 |:---:|:---:|:---:|:---:|
-| built-in catalog + [Circle x402 Discovery](https://circle.com) | Arc testnet now · mainnet-ready | **$0.01**/query typical | daily caps, enforced pre-payment |
+| Built-in catalog + [Circle Discovery](https://circle.com) | Arc Testnet (`5042002`) · Base · Mainnet-ready | **$0.01**/query typical (USDC) | Circle Agent Stack **+** MetaMask Web3 |
 
 ---
 
+## ⚡ Live Deployments
+
+* 🖥️ **Live Web Control Deck:** [https://x402.pulsmarket.tech/dashboard](https://x402.pulsmarket.tech/dashboard)
+* 🚀 **Public Gateway Node:** `https://puls-e03f5aa20cb5.herokuapp.com`
+* 🔍 **Arc Testnet Explorer:** [https://testnet.arcscan.app](https://testnet.arcscan.app) (`Chain ID: 5042002` / `0x4cefb2`)
+
+---
+
+## 📦 Quick Start (CLI & Local)
+
+You can run PulsRouter directly with `npx` or install it globally:
+
 ```bash
-$ node src/index.js serve --port 3000
-pulsrouter serving on http://localhost:3000
-  GET  /registry   merged local + discovery provider catalog
-  POST /proxy      body: {"type":"research","q":"fed rate cut"}
-  GET  /health     { ok, wallets, pending }
+# Run without installing
+npx pulsrouter --help
 
-$ curl -X POST localhost:3000/proxy -H 'content-type: application/json' \
-      -d '{"type":"research","q":"fed rate cut"}'
-
-$ node src/index.js pay research "fed rate decision"
-routing "research" via cheapest healthy provider…
-via    Puls Deep Research
-price  0.01 USDC
-{
-  "paid": true,
-  "count": 3,
-  "settledTx": "0x9f2a…",
-  "raw": { … }
-}
+# Or install globally
+npm install -g pulsrouter
 ```
 
-*One call in, receipt + data out. The 402 dance, price comparison, retries, and budgets are PulsRouter's problem now.*
-
-## Quick Start
-
-Three commands to your first paid API call (< 5 min):
-
+### 1. Initialize Configuration
 ```bash
-# 1 ─ scaffold pulsrouter.config.json
-node src/index.js init
+pulsrouter init
+```
+Generates `pulsrouter.config.json` with pre-configured endpoints, daily budgets, and multi-agent wallet support.
 
-# 2 ─ set your agent wallet
-#    edit wallets[0].address in the config, or just:
+### 2. Set Your Agent Wallet
+Set your wallet address via environment variable or in `pulsrouter.config.json`:
+```bash
 export WALLET=0xyouragentwallet        # PowerShell: $env:WALLET="0x…"
-
-# 3 ─ first real payment (cheapest healthy provider for type "research")
-node src/index.js pay research "arc ecosystem overview"
 ```
 
-Prereqs: Node ≥ 18 and the [Circle CLI](https://circle.com) logged in (`circle wallet status`), with a little test USDC on the wallet. Everything defaults to ARC-TESTNET. Then `node src/index.js serve` for the HTTP API + Control Deck Dashboard at `http://localhost:3000`.
+### 3. Start the Router & Control Deck
+```bash
+pulsrouter serve --port 3000
+```
+Open **`http://localhost:3000`** to launch the interactive **Control Deck Dashboard**!
 
-To run the standalone landing page: `npm run landing:dev`.
+### 4. Route & Pay via CLI
+```bash
+# Query deep research (routes to cheapest provider, settles 0.01 USDC)
+pulsrouter pay research "arc testnet ecosystem overview"
 
-Full walkthrough: [`docs/guide.md`](docs/guide.md) · Endpoint details: [`docs/API.md`](docs/API.md)
+# Query prediction markets
+pulsrouter pay markets "BTC"
+```
+
+---
+
+## 🌐 Control Deck Features
+
+The Control Deck dashboard is available on [x402.pulsmarket.tech/dashboard](https://x402.pulsmarket.tech/dashboard) and locally at `http://localhost:3000`:
+
+* 🦊 **MetaMask Web3 Direct Settlement:**
+  * One-click wallet connect via standard EIP-1193.
+  * Auto-switch / add network prompt for **Arc Testnet** (`0x4cefb2` / `5042002`).
+  * Live native USDC balance display (18 decimals).
+  * Direct browser-initiated on-chain payment with instantaneous Arcscan transaction verification.
+* 📦 **Instant Data Delivery (Receipt & Payload):**
+  * When paying via MetaMask or Router, the receipt displays both the on-chain confirmation and the **full delivered information** (formatted research brief, cited sources cards, prediction market consensus).
+  * Dual-tab toggle between **Delivered Data** and **Raw JSON**.
+* 📋 **Interactive Provider Catalog (Registry):**
+  * **Chain Filters:** Toggle between `ALL`, `ARC-TESTNET`, and `BASE`.
+  * **Quick Sort:** Sort by `Price (Low → High / High → Low)`, `Chain`, `Name`, or `Type`.
+  * **Clickable Column Headers:** Click any table column (`Provider`, `Type`, `Price`, `Chain`, `Source`) with directional sort indicators (`▲` / `▼`).
+* 📜 **Real-time Event Feed & Audit Trail:**
+  * Live telemetry for autonomous AI agent decisions, routing hops, payment proofs, and balance changes.
+
+---
+
+## 🛠️ CLI Command Reference
+
+| Command | Description |
+|---|---|
+| `pulsrouter serve [--port 3000]` | Boots the HTTP gateway daemon + local Control Deck UI |
+| `pulsrouter pay <type> <query>` | Routes to cheapest healthy provider, pays, and returns verified data |
+| `pulsrouter list` | Displays active providers, prices, and chains from merged catalog |
+| `pulsrouter advice [0xwallet]` | Analyzes wallet float, gas reserves, and recommends rebalancing |
+| `pulsrouter health` | Inspects node status, agent stack wallets, and pending transactions |
+| `pulsrouter init` | Scaffolds standard `pulsrouter.config.json` |
+
+---
 
 ## How It Works
 
@@ -97,34 +147,81 @@ Add your own providers in seconds — a row is four fields:
 { "type": "weather", "name": "SkyWire", "endpoint": "https://api.skywire.example/x402/today", "priceUsdc": 0.002 }
 ```
 
-## Why not just…
+---
 
-| | Raw x402 client | Manual CLI calls | PulsRouter |
-|---|---|---|---|
-| Discover providers | you scrape/broker lists | you read docs by hand | ✅ merged catalog, auto-refreshed |
-| Pick cheapest healthy | your code | your gut | ✅ sorted, failover built in |
-| 402 negotiation + USDC settle | your crypto code | `circle services pay`, by hand, per call | ✅ one POST |
-| Retries across providers | your loop | you, again | ✅ automatic walk down the list |
-| Spend limits | your ledger | hope | ✅ daily caps enforced pre-payment |
-| Audit trail | your logs | scrollback | ✅ `/health`, feed endpoint, dashboard Log tab |
-| Code you write | hundreds of lines | every time, forever | **zero lines** |
+## 📡 Core Endpoints
 
-## Repository Map
+#### `POST /proxy`
+Executes an intelligent routed request.
+```bash
+curl -X POST https://puls-e03f5aa20cb5.herokuapp.com/proxy \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"research","q":"arc testnet architecture"}'
+```
+*Supports optional `txHash` and `payer` parameters for MetaMask on-chain fulfillment.*
 
-| Path | What |
+#### `GET /registry`
+Returns the deduplicated, chain-aware provider catalog:
+```json
+{
+  "registry": [
+    {
+      "name": "Puls Deep Research",
+      "type": "research",
+      "priceUsdc": 0.01,
+      "chain": "ARC-TESTNET",
+      "endpoint": "https://api.pulsmarket.tech/api/x402/research",
+      "source": "local"
+    }
+  ]
+}
+```
+
+#### `GET /health`
+Returns gateway status, active agent stack wallets (`vega`, `atlas`, `sol`), uptime, and pending queue items.
+
+#### `GET /api/agents/feed`
+Returns the rolling audit trail of routing decisions, settlements, and failovers.
+
+---
+
+## 💻 Development & Testing
+
+```bash
+# Clone the repository
+git clone https://github.com/rdmbtc/pulsrouter.git
+cd pulsrouter
+
+# Run automated tests (55 unit & integration tests)
+npm test
+
+# Run the landing & deck dev server
+npm run landing:dev
+
+# Build the landing project (Vite + Nitro)
+npm run landing:build
+```
+
+---
+
+## 📂 Repository Map
+
+| Path | Description |
 |---|---|
 | [`docs/API.md`](docs/API.md) | Every HTTP endpoint, live-tested request/response examples |
 | [`docs/BUDGETS.md`](docs/BUDGETS.md) | Daily-cap semantics, recipes, gotchas |
 | [`docs/guide.md`](docs/guide.md) | Zero → first payment walkthrough + troubleshooting |
 | [`public/`](public/) | Control Deck (Dashboard) served on `http://localhost:3000/` |
-| [`landing/`](landing/) | Standalone Vite marketing landing project (`npm run landing:dev`) |
-| `pulsrouter.config.json` | The only thing you configure |
+| [`landing/`](landing/) | Standalone Vite + React marketing landing and dashboard |
+| [`src/`](src/) | Router engine, Circle CLI bridge, and HTTP server daemon |
+| `pulsrouter.config.json` | The primary runtime configuration file |
 
 ---
 
 <div align="center">
 
-**MIT** licensed — free, open source, self-hosted. No accounts, no cloud, no middleman.
-⚠️ `/proxy` moves real money: keep budgets small until you trust your providers.
+**MIT License** · Free, open source, and self-hostable.
+
+*Built for the autonomous agent and micropayment economy on Arc.*
 
 </div>
