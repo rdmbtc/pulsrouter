@@ -7,8 +7,9 @@
   },
   "chain": "ARC-TESTNET",
   "wallets": [
-    { "address": "<your-agent-wallet>", "label": "vega", "primary": true },
-    { "address": "<optional-second-wallet>", "label": "atlas" }
+    { "address": "0xb07991a5d42e0009c2cec33bd3016df34742fa17", "label": "vega", "primary": true },
+    { "address": "0x474bf0f32a4424e97748164fb3ac4bde4d289e32", "label": "atlas" },
+    { "address": "0xbe1b5c9727190a5d32940b4cb39a85541909db6d", "label": "sol" }
   ],
   "budgets": {
     "research": 5,
