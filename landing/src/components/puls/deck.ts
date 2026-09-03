@@ -26,11 +26,67 @@ export type WalletView = {
   kv: [string, string][];
 };
 
+export const ARC_TESTNET_CHAIN_ID = "0x4cefb2"; // 5042002 in hex
+export const ARC_CHAIN_PARAMS = {
+  chainId: "0x4cefb2",
+  chainName: "Arc Testnet",
+  nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 },
+  rpcUrls: ["https://rpc.testnet.arc.network"],
+  blockExplorerUrls: ["https://testnet.arcscan.app"],
+};
+
+export const SEED_REGISTRY: RegistryRow[] = [
+  {
+    name: "Puls Deep Research",
+    endpoint: "https://api.pulsmarket.tech/api/x402/research",
+    type: "research",
+    priceUsdc: 0.01,
+    chain: "ARC-TESTNET",
+    source: "pulsmarket",
+  },
+  {
+    name: "Puls Market Snapshot",
+    endpoint: "https://api.pulsmarket.tech/api/x402/markets",
+    type: "markets",
+    priceUsdc: 0.01,
+    chain: "ARC-TESTNET",
+    source: "pulsmarket",
+  },
+  {
+    name: "Circle Agent Verification",
+    endpoint: "https://api.circle.com/v2/x402/discovery/resources",
+    type: "discovery",
+    priceUsdc: 0.005,
+    chain: "ARC-TESTNET",
+    source: "circle",
+  },
+  {
+    name: "Masterkey x402 Gateway",
+    endpoint: "https://www.masterkey.sh/api/catalog",
+    type: "catalog",
+    priceUsdc: 0.01,
+    chain: "ARC-TESTNET",
+    source: "masterkey",
+  },
+  {
+    name: "ZAuth Endpoint Directory",
+    endpoint: "https://api.zauth.inc/api/x402/endpoints",
+    type: "auth",
+    priceUsdc: 0.02,
+    chain: "BASE",
+    source: "zauth",
+  },
+];
+
 export const apiBase = () => {
   if (typeof window === "undefined") return "";
+  const custom = localStorage.getItem("pulsrouter_api_target");
+  if (custom) return custom.replace(/\/$/, "");
   const qs = new URLSearchParams(window.location.search).get("api");
-  if (qs) return qs;
-  return window.location.hostname === "localhost" ? "http://localhost:3000" : "";
+  if (qs) return qs.replace(/\/$/, "");
+  if (window.location.hostname === "localhost") return "http://localhost:3000";
+  // Production Heroku backend fallback ensures x402.pulsmarket.tech is immediately alive
+  return "https://puls-e03f5aa20cb5.herokuapp.com";
 };
 
 export async function apiCall<T = unknown>(

@@ -75,20 +75,21 @@ tailwind.config = {
 </style>
 </head>
 <body class="dark">
-  <!-- Ambient layers -->
-  <div class="pointer-events-none fixed inset-0 z-0"><div class="aurora-wash h-full w-full"></div></div>
-  <div class="pointer-events-none fixed inset-0 z-0 noise-layer"></div>
-  <div class="pointer-events-none fixed inset-0 z-0 opacity-70 [mask-image:radial-gradient(ellipse_at_50%_10%,black,transparent_92%)]">
-    <svg class="h-full w-full" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="rgba(255,255,255,0.05)"/></pattern></defs><rect width="100%" height="100%" fill="url(#dots)"/></svg>
+<body class="bg-dots antialiased selection:bg-pink-500 selection:text-white">
+
+  <!-- Ambient blur lights -->
+  <div class="pointer-events-none fixed inset-0 overflow-hidden">
+    <div class="absolute -top-40 left-1/4 h-96 w-96 rounded-full bg-pink-500/10 blur-[120px]"></div>
+    <div class="absolute top-1/3 -right-20 h-96 w-96 rounded-full bg-purple-500/10 blur-[140px]"></div>
+    <div class="absolute -bottom-40 left-1/3 h-96 w-96 rounded-full bg-pink-500/5 blur-[120px]"></div>
   </div>
-  <div class="pointer-events-none fixed inset-0 z-0 grid-backdrop opacity-30"></div>
 
   <div class="relative min-h-screen pb-24">
     <!-- TOP BAR -->
     <header class="sticky top-0 z-40 px-4 pt-4 sm:px-6">
       <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-4 rounded-2xl glass px-4 py-3 panel-shadow">
         <a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
-          <span class="grid h-9 w-9 place-items-center rounded-xl border border-pink-500/50 bg-pink-500/10 text-pink-300 pulse-glow text-sm">&#9670;</span>
+          <img src="/logo.png" alt="PulsRouter" class="h-9 w-9 rounded-xl object-contain border border-pink-500/50 bg-pink-500/10 p-1 pulse-glow" />
           <span>
             <span class="block font-display text-sm font-bold tracking-[0.18em]">PULSROUTER</span>
             <span class="block font-mono text-[10px] uppercase tracking-[0.28em] text-gray-500">x402 control deck</span>
@@ -98,6 +99,18 @@ tailwind.config = {
         <button id="node-btn" onclick="promptNode()" title="Click to change target PulsRouter API node" class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-[11px] text-pink-300 transition-colors hover:border-pink-500/50 hover:bg-white/10">
           <span class="text-gray-500">node:</span> <span id="node-label">auto</span>
         </button>
+        <!-- METAMASK CONNECT -->
+        <button id="mm-connect-btn" onclick="connectMetaMask()" class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 font-mono text-[11px] font-semibold text-amber-300 transition-all hover:border-amber-500/80 hover:bg-amber-500/20 active:scale-95 shadow-[0_0_12px_rgba(245,158,11,0.15)]">
+          <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 32 32" fill="none"><path d="M29.5 2L18.4 10.3l2 4.9 9.1-13.2z" fill="#E2761B"/><path d="M2.5 2l11 8.3-2 4.9L2.5 2z" fill="#E4761B"/><path d="M25.3 22.8l-2.4 3.7 6.4 1.8 1.9-6.3-5.9.8z" fill="#E4761B"/><path d="M6.7 22.8l2.4 3.7-6.4 1.8-1.9-6.3 5.9.8z" fill="#E4761B"/><path d="M10.7 13.9l-2 3.1 7.2.3-.2-7.8-5 4.4z" fill="#D7C1B3"/><path d="M21.3 13.9l2 3.1-7.2.3.2-7.8 5 4.4z" fill="#D7C1B3"/><path d="M8.7 17l-3.3 5 4.9.4-.5-4.1-1.1-1.3z" fill="#233447"/><path d="M23.3 17l3.3 5-4.9.4.5-4.1 1.1-1.3z" fill="#233447"/><path d="M10.3 22.4l-4.9-.4 4 3.1 3.4-1.2-2.5-1.5z" fill="#CD6116"/><path d="M21.7 22.4l4.9-.4-4 3.1-3.4-1.2 2.5-1.5z" fill="#CD6116"/><path d="M16 9.5l-7.3 4.4 2 3.1.2 7.8 5.1 3.2 5.1-3.2.2-7.8 2-3.1L16 9.5z" fill="#F6851B"/></svg>
+          <span id="mm-btn-text">Connect MetaMask</span>
+        </button>
+        <div id="mm-account-pill" class="hidden items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 font-mono text-[11px] text-amber-200">
+          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span id="mm-addr-short">0x1234…5678</span>
+          <button id="mm-network-tag" onclick="switchToArcTestnet()" title="Click to switch network" class="rounded bg-black/40 px-1.5 py-0.5 text-[10px] text-amber-300 hover:bg-black/60">Arc Testnet</button>
+          <span id="mm-balance-tag" class="tabular-nums font-semibold text-white">0.00 USDC</span>
+          <button onclick="disconnectMetaMask()" title="Disconnect MetaMask" class="ml-1 text-gray-400 hover:text-white">&times;</button>
+        </div>
         <span id="online-badge" class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-[11px] text-gray-500">
           <span id="online-dot" class="h-1.5 w-1.5 rounded-full bg-gray-500"></span>
           <span id="online-text">connecting</span>
@@ -268,6 +281,145 @@ function promptNode() {
   window.location.reload();
 }
 
+// ---- MetaMask Web3 Integration ----
+const ARC_TESTNET_CHAIN_ID = '0x4cefb2'; // 5042002
+const ARC_CHAIN_PARAMS = {
+  chainId: '0x4cefb2',
+  chainName: 'Arc Testnet',
+  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
+  rpcUrls: ['https://rpc.testnet.arc.network'],
+  blockExplorerUrls: ['https://testnet.arcscan.app']
+};
+
+let mmAccount = null;
+let mmChainId = null;
+let mmBalance = null;
+
+function getNetworkName(chainId) {
+  const cid = String(chainId || '').toLowerCase();
+  if (cid === '0x4cefb2' || cid === '5042002') return 'Arc Testnet';
+  if (cid === '0x1') return 'Ethereum Mainnet';
+  if (cid === '0x2105' || cid === '8453') return 'Base';
+  if (cid === '0x14a34' || cid === '84532') return 'Base Sepolia';
+  return 'Chain ' + cid;
+}
+
+async function checkMetaMaskOnLoad() {
+  if (typeof window.ethereum === 'undefined') return;
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    if (accounts && accounts.length > 0) {
+      mmAccount = accounts[0];
+      mmChainId = await window.ethereum.request({ method: 'eth_chainId' });
+      await updateMetaMaskUI();
+    }
+  } catch (e) {
+    console.warn('MetaMask check failed:', e);
+  }
+
+  window.ethereum.on('accountsChanged', (accs) => {
+    if (!accs || accs.length === 0) {
+      disconnectMetaMask();
+    } else {
+      mmAccount = accs[0];
+      updateMetaMaskUI();
+    }
+  });
+
+  window.ethereum.on('chainChanged', (cid) => {
+    mmChainId = cid;
+    updateMetaMaskUI();
+  });
+}
+
+async function connectMetaMask() {
+  if (typeof window.ethereum === 'undefined') {
+    window.open('https://metamask.io/download/', '_blank');
+    alert('MetaMask extension is not detected. Please install MetaMask to connect.');
+    return;
+  }
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    mmAccount = accounts[0];
+    mmChainId = await window.ethereum.request({ method: 'eth_chainId' });
+    if (String(mmChainId).toLowerCase() !== ARC_TESTNET_CHAIN_ID.toLowerCase()) {
+      await switchToArcTestnet();
+    }
+    await updateMetaMaskUI();
+    addLog('INFO', `MetaMask connected: ${shortAddr(mmAccount)} (${getNetworkName(mmChainId)})`);
+  } catch (err) {
+    addLog('ERR', `MetaMask connection rejected: ${err?.message || err}`);
+  }
+}
+
+async function switchToArcTestnet() {
+  if (typeof window.ethereum === 'undefined') return;
+  try {
+    await window.ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: ARC_TESTNET_CHAIN_ID }]
+    });
+    mmChainId = ARC_TESTNET_CHAIN_ID;
+  } catch (switchError) {
+    if (switchError.code === 4902 || switchError?.data?.originalError?.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_addEthereumChain',
+          params: [ARC_CHAIN_PARAMS]
+        });
+        mmChainId = ARC_TESTNET_CHAIN_ID;
+      } catch (addError) {
+        console.warn('Failed to add Arc Testnet to MetaMask:', addError);
+      }
+    }
+  }
+  await updateMetaMaskUI();
+}
+
+function disconnectMetaMask() {
+  mmAccount = null;
+  mmBalance = null;
+  const btn = document.getElementById('mm-connect-btn');
+  const pill = document.getElementById('mm-account-pill');
+  if (btn) btn.classList.remove('hidden');
+  if (pill) { pill.classList.add('hidden'); pill.classList.remove('flex'); }
+  addLog('INFO', 'MetaMask disconnected');
+  if (typeof lastHealth !== 'undefined') renderWallets(lastHealth);
+}
+
+async function updateMetaMaskUI() {
+  const btn = document.getElementById('mm-connect-btn');
+  const pill = document.getElementById('mm-account-pill');
+  const addrEl = document.getElementById('mm-addr-short');
+  const netEl = document.getElementById('mm-network-tag');
+  const balEl = document.getElementById('mm-balance-tag');
+
+  if (!mmAccount) {
+    if (btn) btn.classList.remove('hidden');
+    if (pill) { pill.classList.add('hidden'); pill.classList.remove('flex'); }
+    return;
+  }
+
+  if (btn) btn.classList.add('hidden');
+  if (pill) { pill.classList.remove('hidden'); pill.classList.add('flex'); }
+  if (addrEl) addrEl.textContent = shortAddr(mmAccount);
+  if (netEl) netEl.textContent = getNetworkName(mmChainId);
+
+  try {
+    const rawBal = await window.ethereum.request({
+      method: 'eth_getBalance',
+      params: [mmAccount, 'latest']
+    });
+    const ethVal = Number(BigInt(rawBal)) / 1e18;
+    mmBalance = ethVal.toFixed(ethVal > 0 && ethVal < 0.01 ? 4 : 2);
+    if (balEl) balEl.textContent = `${mmBalance} USDC`;
+  } catch {
+    if (balEl) balEl.textContent = '—';
+  }
+
+  if (typeof lastHealth !== 'undefined') renderWallets(lastHealth);
+}
+
 async function apiCall(path, opts = {}, timeoutMs = 10000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -426,7 +578,10 @@ async function pollFeed() {
   } catch { /* feed is optional */ }
 }
 
+let lastHealth = null;
+
 updateNodeLabel();
+checkMetaMaskOnLoad();
 addLog('INFO', `control deck booting \u2014 api base: ${apiBase() || window.location.origin}`);
 pollHealth();
 pollRegistry();
@@ -437,11 +592,39 @@ setInterval(pollFeed, 5000);
 
 // ---- Wallets ----
 function renderWallets(h) {
+  lastHealth = h;
+  let mmCard = '';
+  if (mmAccount) {
+    mmCard = `<article class="reveal rounded-2xl border border-amber-500/50 bg-amber-500/5 p-6 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-amber-500 hover:panel-shadow" data-visible="true">
+      <div class="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.26em] text-amber-300">
+        <span>Connected Web3 Wallet</span>
+        <span class="flex items-center gap-1.5 text-emerald-400">
+          <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          ACTIVE
+        </span>
+      </div>
+      <div class="mt-1.5 display-3 text-amber-200">MetaMask</div>
+      <div class="mt-2 flex items-center gap-2 font-mono text-[11px] text-amber-300/80">
+        <span>${shortAddr(mmAccount)}</span>
+        <button onclick="navigator.clipboard.writeText('${mmAccount}')" title="Copy full address" class="text-xs hover:text-white">&#128203;</button>
+      </div>
+      <ul class="mt-4 space-y-1.5 border-t border-amber-500/20 pt-3 font-mono text-xs">
+        <li class="flex justify-between"><span class="text-gray-400">Network</span><b class="text-white">${getNetworkName(mmChainId)}</b></li>
+        <li class="flex justify-between"><span class="text-gray-400">USDC Balance</span><b class="text-amber-300">${mmBalance !== null ? `${mmBalance} USDC` : 'Loading\u2026'}</b></li>
+      </ul>
+      ${String(mmChainId).toLowerCase() !== ARC_TESTNET_CHAIN_ID.toLowerCase() ? `<div class="mt-3"><button onclick="switchToArcTestnet()" class="rounded-lg bg-amber-500/20 px-3 py-1 font-mono text-[11px] text-amber-200 hover:bg-amber-500/30">Switch to Arc Testnet</button></div>` : ''}
+    </article>`;
+  }
+
   let stack = h?.agentStack;
   if (!stack && Array.isArray(h?.wallets) && h.wallets.length) {
     stack = h.wallets.map(w => (typeof w === 'string' ? { address: w, label: 'wallet' } : w));
   }
   if (!stack || (Array.isArray(stack) && !stack.length)) {
+    if (mmCard) {
+      document.getElementById('wallets-container').innerHTML = `<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">${mmCard}</div>`;
+      return;
+    }
     document.getElementById('wallets-container').innerHTML = '<div class="rounded-2xl border border-dashed border-white/10 bg-surface/30 px-5 py-10 text-center font-mono text-xs text-gray-500">no active wallets configured in pulsrouter.config.json</div>';
     return;
   }
@@ -464,7 +647,7 @@ function renderWallets(h) {
       ${kv.length ? `<div class="mt-3 space-y-1 font-mono text-[10px] text-gray-500">${kv.map(([k, v]) => `<div class="truncate">${k}: ${v}</div>`).join('')}</div>` : ''}
     </article>`;
   }).join('');
-  document.getElementById('wallets-container').innerHTML = `<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">${cards}</div>`;
+  document.getElementById('wallets-container').innerHTML = `<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">${mmCard}${cards}</div>`;
 }
 
 // ---- Registry ----

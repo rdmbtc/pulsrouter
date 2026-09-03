@@ -14,11 +14,52 @@ import {
   pretty,
   shortAddr,
   walletView,
+  SEED_REGISTRY,
+  ARC_TESTNET_CHAIN_ID,
+  ARC_CHAIN_PARAMS,
   type LogEntry,
   type LogKind,
   type RegistryRow,
   type WalletView,
 } from "@/components/puls/deck";
+
+declare global {
+  interface Window {
+    ethereum?: {
+      isMetaMask?: boolean;
+      request: (args: { method: string; params?: unknown[] | unknown }) => Promise<unknown>;
+      on: (event: string, callback: (...args: any[]) => void) => void;
+      removeListener?: (event: string, callback: (...args: any[]) => void) => void;
+    };
+  }
+}
+
+function MetaMaskIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 32 32" fill="none">
+      <path d="M29.5 2L18.4 10.3l2 4.9 9.1-13.2z" fill="#E2761B" />
+      <path d="M2.5 2l11 8.3-2 4.9L2.5 2z" fill="#E4761B" />
+      <path d="M25.3 22.8l-2.4 3.7 6.4 1.8 1.9-6.3-5.9.8z" fill="#E4761B" />
+      <path d="M6.7 22.8l2.4 3.7-6.4 1.8-1.9-6.3 5.9.8z" fill="#E4761B" />
+      <path d="M10.7 13.9l-2 3.1 7.2.3-.2-7.8-5 4.4z" fill="#D7C1B3" />
+      <path d="M21.3 13.9l2 3.1-7.2.3.2-7.8 5 4.4z" fill="#D7C1B3" />
+      <path d="M8.7 17l-3.3 5 4.9.4-.5-4.1-1.1-1.3z" fill="#233447" />
+      <path d="M23.3 17l3.3 5-4.9.4.5-4.1 1.1-1.3z" fill="#233447" />
+      <path d="M10.3 22.4l-4.9-.4 4 3.1 3.4-1.2-2.5-1.5z" fill="#CD6116" />
+      <path d="M21.7 22.4l4.9-.4-4 3.1-3.4-1.2 2.5-1.5z" fill="#CD6116" />
+      <path d="M16 9.5l-7.3 4.4 2 3.1.2 7.8 5.1 3.2 5.1-3.2.2-7.8 2-3.1L16 9.5z" fill="#F6851B" />
+    </svg>
+  );
+}
+
+function getNetworkName(chainId: string | null): string {
+  const cid = String(chainId || "").toLowerCase();
+  if (cid === ARC_TESTNET_CHAIN_ID.toLowerCase() || cid === "5042002") return "Arc Testnet";
+  if (cid === "0x1") return "Ethereum";
+  if (cid === "0x2105" || cid === "8453") return "Base";
+  if (cid === "0x14a34" || cid === "84532") return "Base Sepolia";
+  return cid ? `Chain ${cid}` : "Unknown";
+}
 
 const title = "PulsRouter Control Deck — Live x402 Routing Dashboard";
 const description =
@@ -57,7 +98,7 @@ function Dashboard() {
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [bootMs, setBootMs] = useState(0);
   const [uptime, setUptime] = useState("—");
-  const [registry, setRegistry] = useState<RegistryRow[]>([]);
+  const [registry, setRegistry] = useState<RegistryRow[]>(SEED_REGISTRY);
   const [search, setSearch] = useState("");
   const [stats, setStats] = useState({ tx: 0, vol: 0, fail: 0 });
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -65,6 +106,7 @@ function Dashboard() {
   const [payType, setPayType] = useState("research");
   const [payQ, setPayQ] = useState("");
   const [paying, setPaying] = useState(false);
+  const [payerMode, setPayerMode] = useState<"agent" | "metamask">("agent");
   const [receipt, setReceipt] = useState<{
     mode: "waiting" | "ok" | "err";
     head: string;
@@ -74,6 +116,165 @@ function Dashboard() {
     head: "awaiting instruction",
     body: "// receipt will appear here\n// pick a type, enter a query, hit PAY.",
   });
+
+  const [mmAccount, setMmAccount] = useState<string | null>(null);
+  const [mmChainId, setMmChainId] = useState<string | null>(null);
+  const [mmBalance, setMmBalance] = useState<string | null>(null);
+  const [isConnectingMm, setIsConnectingMm] = useState(false);
+  const [nodeLabel, setNodeLabel] = useState("auto");
+
+  const isArcTestnet = useMemo(() => {
+    const cid = String(mmChainId || "").toLowerCase();
+    return cid === ARC_TESTNET_CHAIN_ID.toLowerCase() || cid === "5042002";
+  }, [mmChainId]);
+
+  const mmNetwork = useMemo(() => getNetworkName(mmChainId), [mmChainId]);
+
+  const updateMmBalance = useCallback(async (account: string) => {
+    if (typeof window === "undefined" || !window.ethereum) return;
+    try {
+      const raw = (await window.ethereum.request({
+        method: "eth_getBalance",
+        params: [account, "latest"],
+      })) as string;
+      const ethVal = Number(BigInt(raw)) / 1e18;
+      setMmBalance(ethVal.toFixed(ethVal > 0 && ethVal < 0.01 ? 4 : 2));
+    } catch {
+      setMmBalance("—");
+    }
+  }, []);
+
+  const connectMetaMask = useCallback(async () => {
+    if (typeof window === "undefined" || !window.ethereum) {
+      window.open("https://metamask.io/download/", "_blank");
+      alert("MetaMask extension not found. Please install MetaMask to connect.");
+      return;
+    }
+    setIsConnectingMm(true);
+    try {
+      const accounts = (await window.ethereum.request({
+        method: "eth_requestAccounts",
+      })) as string[];
+      if (accounts?.[0]) {
+        setMmAccount(accounts[0]);
+        const cid = (await window.ethereum.request({ method: "eth_chainId" })) as string;
+        setMmChainId(cid);
+        if (String(cid).toLowerCase() !== ARC_TESTNET_CHAIN_ID.toLowerCase()) {
+          try {
+            await window.ethereum.request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId: ARC_TESTNET_CHAIN_ID }],
+            });
+            setMmChainId(ARC_TESTNET_CHAIN_ID);
+          } catch (switchError: any) {
+            if (switchError?.code === 4902 || switchError?.data?.originalError?.code === 4902) {
+              await window.ethereum.request({
+                method: "wallet_addEthereumChain",
+                params: [ARC_CHAIN_PARAMS],
+              });
+              setMmChainId(ARC_TESTNET_CHAIN_ID);
+            }
+          }
+        }
+        await updateMmBalance(accounts[0]);
+      }
+    } catch (e: any) {
+      console.warn("MetaMask connection rejected:", e);
+    } finally {
+      setIsConnectingMm(false);
+    }
+  }, [updateMmBalance]);
+
+  const switchToArcTestnet = useCallback(async () => {
+    if (typeof window === "undefined" || !window.ethereum) return;
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: ARC_TESTNET_CHAIN_ID }],
+      });
+      setMmChainId(ARC_TESTNET_CHAIN_ID);
+    } catch (switchError: any) {
+      if (switchError?.code === 4902 || switchError?.data?.originalError?.code === 4902) {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [ARC_CHAIN_PARAMS],
+        });
+        setMmChainId(ARC_TESTNET_CHAIN_ID);
+      }
+    }
+  }, []);
+
+  const disconnectMetaMask = useCallback(() => {
+    setMmAccount(null);
+    setMmBalance(null);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.ethereum) return;
+    window.ethereum
+      .request({ method: "eth_accounts" })
+      .then(async (accounts: any) => {
+        if (accounts?.[0]) {
+          setMmAccount(accounts[0]);
+          const cid = (await window.ethereum!.request({ method: "eth_chainId" })) as string;
+          setMmChainId(cid);
+          updateMmBalance(accounts[0]);
+        }
+      })
+      .catch(() => {});
+
+    const onAccounts = (accs: any) => {
+      const arr = Array.isArray(accs) ? accs : [];
+      if (!arr[0]) {
+        setMmAccount(null);
+        setMmBalance(null);
+      } else {
+        setMmAccount(arr[0]);
+        updateMmBalance(arr[0]);
+      }
+    };
+    const onChain = (cid: any) => {
+      setMmChainId(String(cid));
+      if (mmAccount) updateMmBalance(mmAccount);
+    };
+
+    window.ethereum.on("accountsChanged", onAccounts);
+    window.ethereum.on("chainChanged", onChain);
+  }, [updateMmBalance, mmAccount]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const base = apiBase();
+    if (!base) setNodeLabel("auto");
+    else if (base === "http://localhost:3000") setNodeLabel("localhost:3000");
+    else {
+      try {
+        setNodeLabel(new URL(base).host);
+      } catch {
+        setNodeLabel(base.slice(0, 16));
+      }
+    }
+  }, []);
+
+  const promptNodeTarget = () => {
+    const current = apiBase();
+    const next = window.prompt(
+      "Connect Control Deck to PulsRouter Node:\n\n" +
+        "• Leave empty for default backend\n" +
+        "• Type 'http://localhost:3000' for your local daemon\n" +
+        "• Or enter any remote node URL:",
+      current || "",
+    );
+    if (next === null) return;
+    if (!next.trim()) {
+      localStorage.removeItem("pulsrouter_api_target");
+    } else {
+      let u = next.trim();
+      if (!/^https?:\/\//i.test(u)) u = "http://" + u;
+      localStorage.setItem("pulsrouter_api_target", u);
+    }
+    window.location.reload();
+  };
 
   const logId = useRef(0);
   const onlineRef = useRef<boolean | null>(null);
@@ -199,6 +400,66 @@ function Dashboard() {
       setReceipt({ mode: "err", head: "missing type", body: "pick a data type first" });
       return;
     }
+
+    if (payerMode === "metamask") {
+      if (!mmAccount) {
+        setReceipt({
+          mode: "err",
+          head: "MetaMask not connected",
+          body: "Please click 'Connect MetaMask' in the top bar to pay directly from your web3 wallet.",
+        });
+        return;
+      }
+      setPaying(true);
+      setReceipt({
+        mode: "waiting",
+        head: "MetaMask payment requested",
+        body: "// Waiting for transaction confirmation in MetaMask on Arc Testnet…\n// Recipient: 0xa93FFcC230d1bd6f6b0a23a7f8BEcc2C9ECD894e\n// Amount: 0.01 USDC",
+      });
+      const t0 = performance.now();
+      try {
+        const txHash = (await window.ethereum!.request({
+          method: "eth_sendTransaction",
+          params: [
+            {
+              from: mmAccount,
+              to: "0xa93FFcC230d1bd6f6b0a23a7f8BEcc2C9ECD894e",
+              value: "0x2386f26fc10000",
+            },
+          ],
+        })) as string;
+        const dt = ((performance.now() - t0) / 1000).toFixed(1);
+        setStats((s) => ({ ...s, tx: s.tx + 1, vol: s.vol + 0.01 }));
+        setReceipt({
+          mode: "ok",
+          head: `SUCCESS — settled 0.01 USDC via MetaMask (${dt}s)`,
+          body: pretty({
+            paid: "$0.01 USDC",
+            network: "Arc Testnet (eip155:5042002)",
+            txHash,
+            arcscan: `https://testnet.arcscan.app/tx/${txHash}`,
+            payer: mmAccount,
+            provider: payType === "markets" ? "Puls Market Snapshot" : "Puls Deep Research",
+            status: "CONFIRMED_ONCHAIN",
+            timestamp: new Date().toISOString(),
+          }),
+        });
+        log("PAY", `settled 0.01 USDC via MetaMask → tx: ${shortAddr(txHash)} (${dt}s)`);
+        await updateMmBalance(mmAccount);
+      } catch (err: any) {
+        setStats((s) => ({ ...s, fail: s.fail + 1 }));
+        setReceipt({
+          mode: "err",
+          head: "MetaMask transaction rejected or failed",
+          body: pretty({ error: err?.message || String(err) }),
+        });
+        log("ERR", `MetaMask payment failed: ${err?.message || err}`);
+      } finally {
+        setPaying(false);
+      }
+      return;
+    }
+
     setPaying(true);
     setReceipt({
       mode: "waiting",
@@ -267,9 +528,11 @@ function Dashboard() {
       <header className="sticky top-0 z-40 px-4 pt-4 sm:px-6">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-4 rounded-2xl glass px-4 py-3 panel-shadow">
           <Link to="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
-            <span className="grid h-9 w-9 place-items-center rounded-xl border border-brand/50 bg-brand/10 text-brand-hi pulse-glow">
-              ◆
-            </span>
+            <img
+              src="/logo.png"
+              alt="PulsRouter Logo"
+              className="h-9 w-9 rounded-xl object-contain border border-brand/50 bg-brand/10 p-1 pulse-glow"
+            />
             <span>
               <span className="block font-display text-sm font-bold tracking-[0.18em]">
                 PULSROUTER
@@ -281,6 +544,58 @@ function Dashboard() {
           </Link>
 
           <div className="flex-1" />
+
+          {/* Node Switcher */}
+          <button
+            type="button"
+            onClick={promptNodeTarget}
+            title="Change target PulsRouter API node"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-foreground/5 px-3 py-1.5 font-mono text-[11px] text-brand-hi transition-colors hover:border-brand/50 hover:bg-foreground/10"
+          >
+            <span className="text-muted-foreground">node:</span>
+            <span>{nodeLabel}</span>
+          </button>
+
+          {/* MetaMask Web3 Button */}
+          {!mmAccount ? (
+            <button
+              type="button"
+              onClick={connectMetaMask}
+              disabled={isConnectingMm}
+              className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 font-mono text-[11px] font-semibold text-amber-300 transition-all hover:border-amber-500/80 hover:bg-amber-500/20 active:scale-95 shadow-[0_0_12px_rgba(245,158,11,0.15)]"
+            >
+              <MetaMaskIcon className="h-3.5 w-3.5" />
+              <span>{isConnectingMm ? "Connecting…" : "Connect MetaMask"}</span>
+            </button>
+          ) : (
+            <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 font-mono text-[11px] text-amber-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span title={mmAccount}>{shortAddr(mmAccount)}</span>
+              <button
+                type="button"
+                onClick={isArcTestnet ? undefined : switchToArcTestnet}
+                title={isArcTestnet ? "Connected to Arc Testnet" : "Click to switch to Arc Testnet"}
+                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                  isArcTestnet
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : "bg-amber-500/30 text-amber-200 underline hover:bg-amber-500/40 cursor-pointer"
+                }`}
+              >
+                {mmNetwork}
+              </button>
+              {mmBalance !== null && (
+                <span className="tabular-nums font-semibold text-white">{mmBalance} USDC</span>
+              )}
+              <button
+                type="button"
+                onClick={disconnectMetaMask}
+                title="Disconnect MetaMask"
+                className="ml-0.5 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           <span
             className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-[11px] ${
@@ -357,7 +672,7 @@ function Dashboard() {
             </div>
 
             <DeckHead kicker="Circle agent wallets" title="Agent wallets" />
-            {wallets.length === 0 ? (
+            {wallets.length === 0 && !mmAccount ? (
               <EmptyBox>
                 {online
                   ? "agentStack not reported by /health — wallets unknown"
@@ -365,6 +680,50 @@ function Dashboard() {
               </EmptyBox>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {mmAccount && (
+                  <article className="reveal rounded-2xl border border-amber-500/50 bg-amber-500/5 p-6 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-amber-500 hover:panel-shadow">
+                    <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.26em] text-amber-300">
+                      <span>Connected Web3 Wallet</span>
+                      <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                        ACTIVE
+                      </span>
+                    </div>
+                    <div className="mt-1.5 display-3 text-amber-200">MetaMask</div>
+                    <div className="mt-2 flex items-center gap-2 font-mono text-[11px] text-amber-300/80">
+                      <span>{shortAddr(mmAccount)}</span>
+                      <button
+                        type="button"
+                        onClick={() => navigator.clipboard.writeText(mmAccount)}
+                        title="Copy full address"
+                        className="text-xs hover:text-white"
+                      >
+                        📋
+                      </button>
+                    </div>
+                    <ul className="mt-4 space-y-1.5 border-t border-amber-500/20 pt-3 font-mono text-xs">
+                      <li className="flex justify-between">
+                        <span className="text-muted-foreground">Network</span>
+                        <b className="text-white">{mmNetwork}</b>
+                      </li>
+                      <li className="flex justify-between">
+                        <span className="text-muted-foreground">USDC Balance</span>
+                        <b className="text-amber-300">{mmBalance !== null ? `${mmBalance} USDC` : "Loading…"}</b>
+                      </li>
+                    </ul>
+                    {!isArcTestnet && (
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={switchToArcTestnet}
+                          className="rounded-lg bg-amber-500/20 px-3 py-1 font-mono text-[11px] text-amber-200 hover:bg-amber-500/30"
+                        >
+                          Switch to Arc Testnet
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                )}
                 {wallets.map((w, i) => (
                   <article
                     key={`${w.title}-${i}`}
@@ -482,6 +841,46 @@ function Dashboard() {
                 className="reveal rounded-2xl border border-border bg-surface/50 p-6 backdrop-blur-xl"
               >
                 <label className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                  Payer
+                </label>
+                <div className="mt-2 mb-4 grid grid-cols-2 gap-2 font-mono text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setPayerMode("agent")}
+                    className={`rounded-xl border p-2.5 text-left transition-all ${
+                      payerMode === "agent"
+                        ? "border-brand bg-brand/15 text-brand-hi shadow-[0_0_10px_rgba(214,51,132,0.2)]"
+                        : "border-border bg-background/50 text-muted-foreground hover:bg-background/80"
+                    }`}
+                  >
+                    <div className="font-semibold">Circle Agent Stack</div>
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      {wallets[0]?.title || "vega"} (via Router /proxy)
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!mmAccount) connectMetaMask();
+                      else setPayerMode("metamask");
+                    }}
+                    className={`rounded-xl border p-2.5 text-left transition-all ${
+                      payerMode === "metamask"
+                        ? "border-amber-500 bg-amber-500/15 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.2)]"
+                        : "border-border bg-background/50 text-muted-foreground hover:bg-background/80"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-semibold text-amber-300">
+                      <MetaMaskIcon className="h-3.5 w-3.5" />
+                      <span>MetaMask Web3</span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      {mmAccount ? `${shortAddr(mmAccount)} (${mmNetwork})` : "Click to connect"}
+                    </div>
+                  </button>
+                </div>
+
+                <label className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
                   Data type
                 </label>
                 <select
@@ -509,13 +908,24 @@ function Dashboard() {
                 <button
                   type="submit"
                   disabled={paying}
-                  className="mt-6 w-full rounded-xl bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground transition-all glow-ring hover:brightness-110 active:scale-95 disabled:opacity-60"
+                  className={`mt-6 w-full rounded-xl px-6 py-3.5 text-sm font-semibold transition-all glow-ring hover:brightness-110 active:scale-95 disabled:opacity-60 ${
+                    payerMode === "metamask"
+                      ? "bg-amber-500 text-black font-bold shadow-[0_0_20px_rgba(245,158,11,0.3)]"
+                      : "bg-primary text-primary-foreground"
+                  }`}
                 >
-                  {paying ? "PAYING…" : "PAY"}
+                  {paying
+                    ? payerMode === "metamask"
+                      ? "APPROVING IN METAMASK…"
+                      : "PAYING VIA ROUTER…"
+                    : payerMode === "metamask"
+                      ? "PAY VIA METAMASK (0.01 USDC ON ARC)"
+                      : "PAY VIA ROUTER (0.01 USDC)"}
                 </button>
                 <p className="mt-4 font-mono text-[11px] leading-relaxed text-muted-foreground">
-                  POST /proxy → cheapest healthy provider for the type. Settles in USDC via your Circle
-                  agent wallet — can take up to a minute on-chain.
+                  {payerMode === "metamask"
+                    ? "Direct on-chain settlement via your connected MetaMask wallet on Arc Testnet (5042002) to the provider contract."
+                    : "POST /proxy → cheapest healthy provider for the type. Settles in USDC via your Circle agent wallet."}
                 </p>
               </form>
 

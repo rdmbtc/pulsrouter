@@ -372,9 +372,11 @@ function Footer() {
       <div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-lg border border-brand/40 bg-brand/10 text-brand-hi">
-              ◆
-            </span>
+            <img
+              src="/logo.png"
+              alt="PulsRouter"
+              className="h-8 w-8 rounded-lg object-contain border border-brand/40 bg-brand/10 p-1"
+            />
             <span className="font-display text-lg font-bold">PulsRouter</span>
           </div>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">

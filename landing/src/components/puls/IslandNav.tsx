@@ -89,10 +89,12 @@ export function IslandNav() {
         }`}
       >
         <div className="flex items-center gap-3 px-3 py-2 sm:gap-4">
-          <a href="#top" className="flex shrink-0 items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-lg border border-brand/40 bg-brand/10 font-display text-brand-hi glow-ring">
-              ◆
-            </span>
+          <a href="#top" className="flex shrink-0 items-center gap-2.5 transition-opacity hover:opacity-85">
+            <img
+              src="/logo.png"
+              alt="PulsRouter Logo"
+              className="h-7 w-7 rounded-lg object-contain border border-brand/40 bg-brand/10 p-0.5 glow-ring"
+            />
             <span className="font-display text-[15px] font-bold tracking-tight">PulsRouter</span>
           </a>
 
