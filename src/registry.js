@@ -104,15 +104,25 @@ function normalizeDiscovery(resources = [], chainFilter) {
   return out;
 }
 
+const CACHE_TTL_MS = 5 * 60 * 1000;
+let _extCache = { ts: 0, chain: '', rows: [] };
+
+/** Reset in-memory external registry cache (for tests/refresh). */
+export function resetRegistryCache() {
+  _extCache = { ts: 0, chain: '', rows: [] };
+}
+
 /**
  * Build the unified provider catalog: local file + inline config rows first,
- * then (optionally) Circle Discovery filtered to cfg.chain. Discovery failures
- * degrade silently to local-only. Endpoint duplicates are dropped (first wins).
+ * then (optionally) Circle Discovery filtered to cfg.chain, Masterkey, and ZAuth.
+ * External results are cached for 5 minutes in memory.
+ * Discovery failures degrade silently to local-only. Endpoint duplicates are dropped (first wins).
  * @param {Object} cfg PulsRouter config (uses cfg.chain + cfg.registries)
  * @param {Function} [fetchImpl] injectable fetch for tests
+ * @param {Object} [opts] options ({ force: boolean })
  * @returns {Promise<Array<{type,name,endpoint,priceUsdc,chain,source}>>}
  */
-export async function buildRegistry(cfg, fetchImpl = globalThis.fetch) {
+export async function buildRegistry(cfg, fetchImpl = globalThis.fetch, opts = {}) {
   const regs = cfg?.registries || {};
   const seen = new Set();
   const out = [];
@@ -127,24 +137,42 @@ export async function buildRegistry(cfg, fetchImpl = globalThis.fetch) {
     ...(Array.isArray(regs.localRows) ? regs.localRows : []),
   ]).forEach(push);
 
-  if (regs.discovery !== false && typeof fetchImpl === 'function') {
+  const isDefaultFetch = fetchImpl === globalThis.fetch;
+  const useCache = isDefaultFetch && !opts?.force;
+  const chainKey = String(cfg?.chain || '').toLowerCase();
+
+  if (useCache && _extCache.ts && (Date.now() - _extCache.ts < CACHE_TTL_MS) && _extCache.chain === chainKey) {
+    for (const r of _extCache.rows) push(r);
+    return out;
+  }
+
+  const extRows = [];
+  const pushExt = (entry) => {
+    if (!entry.endpoint || seen.has(entry.endpoint)) return;
+    seen.add(entry.endpoint);
+    out.push(entry);
+    if (useCache) extRows.push(entry);
+  };
+
+  const fetchDiscovery = async () => {
+    if (regs.discovery === false || typeof fetchImpl !== 'function') return [];
     try {
       const res = await fetchImpl(DISCOVERY_URL, { signal: AbortSignal.timeout(5000) });
       if (res.ok) {
         const j = await res.json();
-        normalizeDiscovery(j.resources || [], cfg.chain).forEach(push);
+        return normalizeDiscovery(j.resources || [], cfg.chain);
       }
-    } catch { /* discovery is optional РІР‚вЂќ silent fallback to local */ }
-  }
+    } catch { /* discovery is optional — silent fallback to local */ }
+    return [];
+  };
 
-  // РІвЂќР‚РІвЂќР‚ Masterkey.sh catalog (1800+ x402 services, keyless API) РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚
-  try {
-    const mkRes = await fetchImpl(MASTERKEY_URL, { signal: AbortSignal.timeout(10000) });
-    if (mkRes.ok) {
-      const mkj = await mkRes.json();
-      const entries = Array.isArray(mkj.entries) ? mkj.entries : [];
-      for (const entry of entries) {
-        push({
+  const fetchMasterkey = async () => {
+    try {
+      const mkRes = await fetchImpl(MASTERKEY_URL, { signal: AbortSignal.timeout(10000) });
+      if (mkRes.ok) {
+        const mkj = await mkRes.json();
+        const entries = Array.isArray(mkj.entries) ? mkj.entries : [];
+        return entries.map((entry) => ({
           type: String(entry.category || 'unknown').toLowerCase(),
           name: entry.name || entry.id || 'unnamed',
           endpoint: null,
@@ -153,39 +181,59 @@ export async function buildRegistry(cfg, fetchImpl = globalThis.fetch) {
           source: 'masterkey',
           description: entry.description || '',
           tags: Array.isArray(entry.tags) ? entry.tags : [],
-        });
+        }));
       }
-    }
-  } catch { /* masterkey optional */ }
+    } catch { /* masterkey optional */ }
+    return [];
+  };
 
-  // РІвЂќР‚РІвЂќР‚ ZAuth.inc directory (2000+ WORKING x402 endpoints, keyless API) РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚РІвЂќР‚
-  try {
-    let zpage = 0, zmore = true;
-    while (zmore && zpage < 5) {
-      const zRes = await fetchImpl(
-        `${ZAUTH_URL}/api/x402/endpoints?page=${zpage}&limit=100&filter=working`,
-        { signal: AbortSignal.timeout(15_000) }
-      );
-      if (!zRes.ok) break;
-      const zj = await zRes.json();
-      const zRows = Array.isArray(zj.endpoints) ? zj.endpoints : [];
-      if (!zRows.length) { zmore = false; break; }
-      for (const ep of zRows) {
-        if (ep.status !== 'WORKING' || !ep.url) continue;
-        push({
-          type: 'x402_service',
-          name: ep.title || new URL(ep.url).pathname.split('/').filter(Boolean).pop() || ep.url,
-          endpoint: ep.url,
-          priceUsdc: Number(ep.lastPriceUsdc) || 0,
-          chain: String(ep.network || '').toLowerCase(),
-          source: 'zauth',
-          verified: ep.verified === true,
-        });
+  const fetchZauth = async () => {
+    const list = [];
+    try {
+      let zpage = 0, zmore = true;
+      while (zmore && zpage < 5) {
+        const zRes = await fetchImpl(
+          `${ZAUTH_URL}/api/x402/endpoints?page=${zpage}&limit=100&filter=working`,
+          { signal: AbortSignal.timeout(15_000) }
+        );
+        if (!zRes.ok) break;
+        const zj = await zRes.json();
+        const zRows = Array.isArray(zj.endpoints) ? zj.endpoints : [];
+        if (!zRows.length) break;
+        for (const ep of zRows) {
+          if (ep.status !== 'WORKING' || !ep.url) continue;
+          list.push({
+            type: 'x402_service',
+            name: ep.title || new URL(ep.url).pathname.split('/').filter(Boolean).pop() || ep.url,
+            endpoint: ep.url,
+            priceUsdc: Number(ep.lastPriceUsdc) || 0,
+            chain: String(ep.network || '').toLowerCase(),
+            source: 'zauth',
+            verified: ep.verified === true,
+          });
+        }
+        zmore = zj.pagination?.hasMore === true;
+        zpage++;
       }
-      zmore = zj.pagination?.hasMore === true;
-      zpage++;
+    } catch { /* zauth optional */ }
+    return list;
+  };
+
+  const results = await Promise.allSettled([
+    fetchDiscovery(),
+    fetchMasterkey(),
+    fetchZauth(),
+  ]);
+
+  for (const r of results) {
+    if (r.status === 'fulfilled' && Array.isArray(r.value)) {
+      r.value.forEach(pushExt);
     }
-  } catch { /* zauth optional */ }
+  }
+
+  if (useCache) {
+    _extCache = { ts: Date.now(), chain: chainKey, rows: extRows };
+  }
 
   return out;
 }

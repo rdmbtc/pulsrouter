@@ -1,0 +1,7 @@
+{
+  "name": "pulsrouter",
+  "description": "One endpoint for the x402 economy: route paid-data requests to the cheapest healthy provider, pay from your Circle Agent Wallet.",
+  "keywords": ["x402", "usdc", "arc", "circle", "agent-stack", "router"],
+  "repository": "https://github.com/rdmbtc/pulsrouter",
+  "buildpacks": [{ "url": "heroku/nodejs" }]
+}

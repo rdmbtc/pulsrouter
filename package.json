@@ -5,13 +5,19 @@
   "type": "module",
   "main": "src/index.js",
   "bin": { "pulsrouter": "src/index.js" },
-  "files": ["src/", "registry.seed.json"],
+  "files": ["src/", "lib/", "public/", "registry.seed.json"],
   "scripts": {
     "start": "node src/index.js serve",
     "test": "node --test",
+    "landing:dev": "npm --prefix landing run dev",
+    "landing:build": "npm --prefix landing run build",
+    "landing:preview": "npm --prefix landing run preview",
     "prepublishOnly": "npm test"
   },
   "keywords": ["x402", "usdc", "arc", "circle", "agent-stack", "router", "nanopayments"],
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": { "node": ">=18" }
 }

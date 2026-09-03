@@ -86,7 +86,7 @@ async function main() {
     case 'serve': {
       const p = parsePort(rest);
       if (p.error) { console.error('error:', p.error); process.exitCode = 1; break; }
-      const port = p.port ?? cfg.server?.port ?? 3000;
+      const port = p.port ?? (process.env.PORT ? Number(process.env.PORT) : cfg.server?.port) ?? 3000;
       const wallet = resolveWallet(cfg);
       try { checkAndWarn(3); } catch (e) { console.error('session guard skipped:', e?.message || e); }
       try {

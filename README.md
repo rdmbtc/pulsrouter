@@ -52,7 +52,9 @@ export WALLET=0xyouragentwallet        # PowerShell: $env:WALLET="0x…"
 node src/index.js pay research "arc ecosystem overview"
 ```
 
-Prereqs: Node ≥ 18 and the [Circle CLI](https://circle.com) logged in (`circle wallet status`), with a little test USDC on the wallet. Everything defaults to ARC-TESTNET. Then `node src/index.js serve` for the HTTP API + dashboard at `public/dashboard.html`.
+Prereqs: Node ≥ 18 and the [Circle CLI](https://circle.com) logged in (`circle wallet status`), with a little test USDC on the wallet. Everything defaults to ARC-TESTNET. Then `node src/index.js serve` for the HTTP API + Control Deck Dashboard at `http://localhost:3000`.
+
+To run the standalone landing page: `npm run landing:dev`.
 
 Full walkthrough: [`docs/guide.md`](docs/guide.md) · Endpoint details: [`docs/API.md`](docs/API.md)
 
@@ -114,8 +116,8 @@ Add your own providers in seconds — a row is four fields:
 | [`docs/API.md`](docs/API.md) | Every HTTP endpoint, live-tested request/response examples |
 | [`docs/BUDGETS.md`](docs/BUDGETS.md) | Daily-cap semantics, recipes, gotchas |
 | [`docs/guide.md`](docs/guide.md) | Zero → first payment walkthrough + troubleshooting |
-| [`public/dashboard.html`](public/dashboard.html) | Control deck: stats, registry browser, Pay console, audit log |
-| [`landing.html`](landing.html) | Marketing landing page (self-contained) |
+| [`public/`](public/) | Control Deck (Dashboard) served on `http://localhost:3000/` |
+| [`landing/`](landing/) | Standalone Vite marketing landing project (`npm run landing:dev`) |
 | `pulsrouter.config.json` | The only thing you configure |
 
 ---

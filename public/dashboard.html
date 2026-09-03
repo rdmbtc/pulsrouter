@@ -1,698 +1,537 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PulsRouter · Control Deck</title>
+<title>PulsRouter Control Deck — Live x402 Routing Dashboard</title>
+<meta name="description" content="Monitor agent wallets, provider registry and USDC settlements in real time.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300..700&family=Plus+Jakarta+Sans:wght@300..800&family=Space+Grotesk:wght@400..700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        background: '#13111c',
+        foreground: '#f2f0f7',
+        surface: '#1c1929',
+        'surface-raised': '#242036',
+        brand: { DEFAULT: '#d63384', hi: '#e879a8' },
+        magenta: '#d63384',
+        violet: '#7c3aed',
+        ok: '#22c55e',
+        warn: '#eab308',
+        err: '#ef4444',
+        muted: { DEFAULT: '#2e2a3d', foreground: '#9892a6' },
+        border: 'rgba(255,255,255,0.08)',
+      },
+      fontFamily: {
+        display: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+      },
+    },
+  },
+}
+</script>
 <style>
   :root {
-    --bg: #0f1629;
-    --bg2: #131c33;
-    --panel: #141e38;
-    --panel2: #182444;
-    --line: rgba(6, 182, 212, .22);
-    --line-soft: rgba(6, 182, 212, .12);
-    --cyan: #06b6d4;
-    --cyan-hi: #22d3ee;
-    --magenta: #ec4899;
-    --magenta-hi: #f472b6;
-    --txt: #dbe7ff;
-    --dim: #7d8db1;
-    --faint: #4a5878;
-    --ok: #34d399;
-    --err: #f87171;
-    --warn: #fbbf24;
-    --mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+    --brand: oklch(0.68 0.22 350);
+    --brand-hi: oklch(0.8 0.15 355);
+    --brand-violet: oklch(0.63 0.2 295);
+    --brand-ok: oklch(0.79 0.15 165);
+    --surface: oklch(0.16 0.018 305);
+    --background: oklch(0.12 0.014 305);
+    --foreground: oklch(0.98 0.004 300);
+    --muted-foreground: oklch(0.72 0.015 305);
+    --border: oklch(1 0 0 / 12%);
+    --shadow-glow: 0 0 44px -10px color-mix(in oklab, var(--brand) 60%, transparent);
+    --shadow-panel: 0 30px 70px -30px color-mix(in oklab, var(--brand-violet) 45%, transparent);
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; }
-  body {
-    background:
-      radial-gradient(900px 500px at 85% -10%, rgba(236, 72, 153, .08), transparent 60%),
-      radial-gradient(900px 600px at -10% 110%, rgba(6, 182, 212, .09), transparent 60%),
-      linear-gradient(rgba(6, 182, 212, .035) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(6, 182, 212, .035) 1px, transparent 1px),
-      var(--bg);
-    background-size: auto, auto, 34px 34px, 34px 34px, auto;
-    color: var(--txt);
-    font-family: var(--mono);
-    font-size: 14px;
-    line-height: 1.5;
-    min-height: 100%;
-  }
-
-  header.topbar {
-    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
-    padding: 14px 26px;
-    border-bottom: 1px solid var(--line);
-    background: linear-gradient(180deg, rgba(6, 182, 212, .06), transparent);
-    position: sticky; top: 0; z-index: 10;
-    backdrop-filter: blur(6px);
-  }
-  .brand { display: flex; align-items: center; gap: 12px; user-select: none; }
-  .brand .sigil {
-    width: 30px; height: 30px; border-radius: 8px;
-    border: 1px solid var(--cyan);
-    display: grid; place-items: center;
-    color: var(--cyan-hi); font-size: 15px;
-    box-shadow: 0 0 14px rgba(6, 182, 212, .45), inset 0 0 8px rgba(6, 182, 212, .25);
-    animation: pulse 3.2s ease-in-out infinite;
-  }
-  @keyframes pulse { 50% { box-shadow: 0 0 24px rgba(236, 72, 153, .5), inset 0 0 8px rgba(6, 182, 212, .35); } }
-  .brand h1 {
-    font-size: 17px; font-weight: 700; letter-spacing: .18em;
-    background: linear-gradient(90deg, var(--cyan-hi), var(--magenta-hi));
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  .brand .sub { color: var(--faint); font-size: 11px; letter-spacing: .28em; text-transform: uppercase; margin-top: 1px; }
-  .spacer { flex: 1; }
-  .pill {
-    display: inline-flex; align-items: center; gap: 8px;
-    border: 1px solid var(--line); border-radius: 999px;
-    padding: 4px 13px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
-    color: var(--dim);
-  }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
-  .pill.on { border-color: rgba(52, 211, 153, .5); color: var(--ok); }
-  .pill.on .dot { background: var(--ok); box-shadow: 0 0 9px var(--ok); animation: blink 2s infinite; }
-  .pill.off { border-color: rgba(248, 113, 113, .5); color: var(--err); }
-  .pill.off .dot { background: var(--err); box-shadow: 0 0 9px var(--err); }
-  @keyframes blink { 50% { opacity: .45; } }
-  .clock { color: var(--faint); font-size: 12px; letter-spacing: .1em; }
-
-  nav.tabs {
-    display: flex; gap: 4px; padding: 10px 26px 0;
-    border-bottom: 1px solid var(--line-soft);
-    position: sticky; top: 59px; z-index: 9;
-    background: rgba(15, 22, 41, .92); backdrop-filter: blur(6px);
-  }
-  nav.tabs button {
-    all: unset; cursor: pointer; position: relative;
-    padding: 9px 20px; font-family: var(--mono);
-    font-size: 12px; letter-spacing: .22em; text-transform: uppercase;
-    color: var(--dim); border-radius: 8px 8px 0 0;
-    transition: color .15s, background .15s;
-  }
-  nav.tabs button:hover { color: var(--txt); background: rgba(6, 182, 212, .07); }
-  nav.tabs button.active { color: var(--cyan-hi); background: rgba(6, 182, 212, .1); }
-  nav.tabs button.active::after {
-    content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
-    background: linear-gradient(90deg, var(--cyan), var(--magenta));
-    box-shadow: 0 0 10px var(--cyan);
-  }
-  nav.tabs button .badge {
-    display: inline-grid; place-items: center; min-width: 17px; height: 17px;
-    margin-left: 8px; padding: 0 4px; border-radius: 999px;
-    background: var(--magenta); color: #fff; font-size: 10px; letter-spacing: 0;
-    vertical-align: 2px;
-  }
-
-  main { padding: 24px 26px 60px; max-width: 1240px; margin: 0 auto; }
-  section.tab { display: none; }
-  section.tab.active { display: block; animation: rise .25s ease; }
-  @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
-
-  h2.sect {
-    font-size: 11px; font-weight: 700; letter-spacing: .3em; text-transform: uppercase;
-    color: var(--dim); margin: 26px 0 12px; display: flex; align-items: center; gap: 10px;
-  }
-  h2.sect::before { content: "▸"; color: var(--magenta); }
-  h2.sect:first-child { margin-top: 0; }
-  h2.sect button {
-    all: unset; cursor: pointer; margin-left: auto;
-    color: var(--cyan); font-size: 11px; letter-spacing: .14em;
-  }
-  h2.sect button:hover { color: var(--cyan-hi); text-shadow: 0 0 8px rgba(6,182,212,.7); }
-
-  .banner {
-    display: none; margin-bottom: 18px; padding: 11px 16px;
-    border: 1px solid rgba(248, 113, 113, .45); border-left: 3px solid var(--err);
-    background: rgba(248, 113, 113, .07); border-radius: 8px;
-    color: #fecaca; font-size: 12.5px;
-  }
-  .banner.show { display: block; }
-  .banner code { color: var(--warn); }
-
-  .grid.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
-  .card {
-    background: linear-gradient(180deg, var(--panel2), var(--panel));
-    border: 1px solid var(--line); border-radius: 12px;
-    padding: 16px 18px; position: relative; overflow: hidden;
-    transition: transform .15s, border-color .15s, box-shadow .15s;
-  }
-  .card:hover { transform: translateY(-2px); border-color: rgba(6, 182, 212, .5); box-shadow: 0 6px 24px rgba(6, 182, 212, .12); }
-  .card::before {
-    content: ""; position: absolute; inset: 0 0 auto 0; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(6, 182, 212, .55), transparent);
-  }
-  .stat .label { font-size: 10px; letter-spacing: .26em; text-transform: uppercase; color: var(--faint); }
-  .stat .value { font-size: 27px; font-weight: 700; margin-top: 6px; color: var(--cyan-hi); text-shadow: 0 0 16px rgba(6, 182, 212, .4); font-variant-numeric: tabular-nums; }
-  .stat.magenta .value { color: var(--magenta-hi); text-shadow: 0 0 16px rgba(236, 72, 153, .4); }
-  .stat .note { font-size: 11px; color: var(--dim); margin-top: 4px; min-height: 16px; }
-
-  .grid.wallets { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
-  .wallet .addr {
-    font-size: 12.5px; color: var(--cyan-hi); word-break: break-all; margin-top: 8px;
-    padding: 8px 10px; background: rgba(6, 182, 212, .05);
-    border: 1px dashed var(--line-soft); border-radius: 8px;
-  }
-  .wallet .wlabel {
-    display: inline-block; margin-top: 10px; padding: 2px 10px;
-    border: 1px solid rgba(236, 72, 153, .45); border-radius: 999px;
-    color: var(--magenta-hi); font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase;
-  }
-  .wallet ul.bal { list-style: none; margin-top: 10px; font-size: 12.5px; }
-  .wallet ul.bal li { display: flex; justify-content: space-between; padding: 4px 2px; border-bottom: 1px dashed rgba(125, 141, 177, .15); }
-  .wallet ul.bal li b { color: var(--txt); font-weight: 700; font-variant-numeric: tabular-nums; }
-  .wallet ul.bal li span { color: var(--dim); }
-  .wallet .raw { margin-top: 10px; font-size: 11px; color: var(--dim); word-break: break-word; white-space: pre-wrap; max-height: 90px; overflow: auto; }
-  .emptybox { color: var(--faint); font-size: 12.5px; padding: 18px; border: 1px dashed var(--line-soft); border-radius: 12px; text-align: center; }
-
-  .toolbar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
-  input[type="text"], input[type="search"], select {
-    background: var(--bg2); color: var(--txt);
-    border: 1px solid var(--line); border-radius: 8px;
-    padding: 9px 13px; font-family: var(--mono); font-size: 13px;
-    outline: none; transition: border-color .15s, box-shadow .15s;
-  }
-  input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(6, 182, 212, .15); }
-  input::placeholder { color: var(--faint); }
-  select option { background: var(--bg2); }
-
-  table.reg { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  table.reg th {
-    text-align: left; padding: 9px 12px; font-size: 10px; letter-spacing: .22em;
-    text-transform: uppercase; color: var(--faint);
-    border-bottom: 1px solid var(--line);
-  }
-  table.reg td { padding: 9px 12px; border-bottom: 1px solid rgba(125, 141, 177, .09); vertical-align: top; }
-  table.reg tbody tr:hover { background: rgba(6, 182, 212, .05); }
-  td.name b { color: var(--txt); } 
-  td.name .ep { display: block; color: var(--faint); font-size: 11px; margin-top: 2px; word-break: break-all; max-width: 420px; }
-  td.price { color: var(--magenta-hi); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .chip {
-    display: inline-block; padding: 1px 9px; border-radius: 999px;
-    font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
-    border: 1px solid var(--line); color: var(--cyan-hi); white-space: nowrap;
-  }
-  .chip.src-local { border-color: rgba(52, 211, 153, .4); color: var(--ok); }
-  .chip.src-discovery { border-color: rgba(236, 72, 153, .45); color: var(--magenta-hi); }
-
-  .paywrap { display: grid; grid-template-columns: minmax(300px, 430px) 1fr; gap: 18px; align-items: start; }
-  @media (max-width: 880px) { .paywrap { grid-template-columns: 1fr; } }
-  form.pay { display: flex; flex-direction: column; gap: 14px; }
-  form.pay label { font-size: 10px; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); display: block; margin-bottom: 6px; }
-  form.pay input, form.pay select { width: 100%; }
-  .btn-pay {
-    all: unset; cursor: pointer; text-align: center;
-    margin-top: 4px; padding: 13px; border-radius: 10px;
-    font-family: var(--mono); font-weight: 700; font-size: 15px; letter-spacing: .42em; text-indent: .42em;
-    color: #fff; background: linear-gradient(90deg, var(--cyan), var(--magenta));
-    box-shadow: 0 0 20px rgba(6, 182, 212, .35), 0 0 34px rgba(236, 72, 153, .18);
-    transition: filter .15s, transform .1s, opacity .15s;
-  }
-  .btn-pay:hover { filter: brightness(1.18); }
-  .btn-pay:active { transform: scale(.985); }
-  .btn-pay[disabled] { opacity: .55; cursor: wait; animation: payglow 1s ease-in-out infinite; }
-  @keyframes payglow { 50% { box-shadow: 0 0 34px rgba(236, 72, 153, .5), 0 0 54px rgba(6, 182, 212, .4); } }
-  .hintline { font-size: 11.5px; color: var(--faint); }
-  .receipt { min-height: 220px; }
-  .receipt pre {
-    background: #0b1222; border: 1px solid var(--line-soft); border-radius: 10px;
-    padding: 16px; font-size: 12px; line-height: 1.55; overflow: auto; max-height: 480px;
-    color: #a5d8ff; white-space: pre-wrap; word-break: break-word;
-  }
-  .receipt .rhead { margin-bottom: 10px; font-size: 12.5px; }
-  .receipt.okv .rhead b { color: var(--ok); }
-  .receipt.errv pre { border-color: rgba(248, 113, 113, .5); color: #fecaca; }
-  .receipt.errv .rhead b { color: var(--err); }
-  .receipt.waiting { color: var(--faint); }
-  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--cyan); border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px; margin-right: 8px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .logwrap {
-    background: #0b1222; border: 1px solid var(--line-soft); border-radius: 12px;
-    height: calc(100vh - 235px); min-height: 320px; overflow-y: auto; padding: 8px 0;
-  }
-  .logrow {
-    display: flex; gap: 12px; align-items: baseline;
-    padding: 5px 18px; font-size: 12.5px; border-left: 2px solid transparent;
-  }
-  .logrow:hover { background: rgba(6, 182, 212, .04); }
-  .logrow .t { color: var(--faint); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .logrow .k { flex: 0 0 52px; text-align: center; font-size: 9.5px; letter-spacing: .14em; border-radius: 4px; padding: 1px 0; }
-  .k-info  { color: var(--cyan-hi);   border: 1px solid rgba(6,182,212,.35); }
-  .k-pay   { color: var(--magenta-hi);border: 1px solid rgba(236,72,153,.45); }
-  .k-err   { color: var(--err);       border: 1px solid rgba(248,113,113,.45); }
-  .k-feed  { color: var(--ok);        border: 1px solid rgba(52,211,153,.35); }
-  .logrow .m { color: var(--txt); word-break: break-word; }
-  .logrow .m .mut { color: var(--dim); }
-  .logrow.errv .m { color: #fecaca; }
-  details.rawlog { margin-left: auto; }
-  details.rawlog summary { cursor: pointer; list-style: none; color: var(--faint); font-size: 10px; letter-spacing: .14em; }
-  details.rawlog summary:hover { color: var(--cyan); }
-  details.rawlog pre {
-    position: relative; margin: 6px 0 0; padding: 10px 12px; max-width: 640px; max-height: 220px; overflow: auto;
-    background: var(--bg2); border: 1px solid var(--line-soft); border-radius: 8px; font-size: 11px; color: #a5d8ff;
-  }
-  ::-webkit-scrollbar { width: 10px; height: 10px; }
-  ::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, .25); border-radius: 6px; border: 2px solid var(--bg); }
-  ::-webkit-scrollbar-track { background: transparent; }
+  * { border-color: var(--border); }
+  body { background: var(--background); color: var(--foreground); font-family: 'Plus Jakarta Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: clip; }
+  .glass { background: color-mix(in oklab, var(--surface) 72%, transparent); backdrop-filter: blur(14px); border: 1px solid var(--border); }
+  .glow-ring { box-shadow: var(--shadow-glow); }
+  .panel-shadow { box-shadow: var(--shadow-panel); }
+  .pulse-glow { animation: pulse-glow 2.4s ease-in-out infinite; }
+  @keyframes pulse-glow { 0%,100% { opacity: 0.45; } 50% { opacity: 1; } }
+  .grid-backdrop { background-image: linear-gradient(to right, color-mix(in oklab, oklch(1 0 0) 6%, transparent) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in oklab, oklch(1 0 0) 6%, transparent) 1px, transparent 1px); background-size: 46px 46px; }
+  .aurora-wash { background: radial-gradient(38% 42% at 18% 22%, color-mix(in oklab, var(--brand) 30%, transparent), transparent 70%), radial-gradient(40% 45% at 82% 30%, color-mix(in oklab, var(--brand-violet) 28%, transparent), transparent 72%); filter: blur(20px); opacity: 0.55; }
+  .kicker { font-family: 'JetBrains Mono', monospace; font-size: 0.6875rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--brand-hi); }
+  .display-2 { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 800; font-size: clamp(1.9rem, 1.1rem + 3vw, 3.35rem); line-height: 1.05; letter-spacing: -0.028em; }
+  .display-3 { font-family: 'Space Grotesk', system-ui, sans-serif; font-weight: 700; font-size: clamp(1.15rem, 1rem + 0.5vw, 1.4rem); line-height: 1.25; letter-spacing: -0.015em; }
+  .reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .reveal[data-visible="true"] { opacity: 1; transform: none; }
+  .reveal-scale { opacity: 0; transform: scale(0.97) translateY(16px); transition: opacity 0.8s ease, transform 0.8s ease; }
+  .reveal-scale[data-visible="true"] { opacity: 1; transform: none; }
+  @keyframes fade-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  .animate-fade-in { animation: fade-in 0.4s ease both; }
+  .noise-layer { opacity: 0.06; mix-blend-mode: overlay; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"); }
 </style>
 </head>
-<body>
-
-<header class="topbar">
-  <div class="brand">
-    <div class="sigil">◉</div>
-    <div>
-      <h1>PULSROUTER</h1>
-      <div class="sub">x402 control deck</div>
-    </div>
+<body class="dark">
+  <!-- Ambient layers -->
+  <div class="pointer-events-none fixed inset-0 z-0"><div class="aurora-wash h-full w-full"></div></div>
+  <div class="pointer-events-none fixed inset-0 z-0 noise-layer"></div>
+  <div class="pointer-events-none fixed inset-0 z-0 opacity-70 [mask-image:radial-gradient(ellipse_at_50%_10%,black,transparent_92%)]">
+    <svg class="h-full w-full" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="rgba(255,255,255,0.05)"/></pattern></defs><rect width="100%" height="100%" fill="url(#dots)"/></svg>
   </div>
-  <div class="spacer"></div>
-  <span class="pill off" id="statusPill"><span class="dot"></span><span id="statusTxt">connecting</span></span>
-  <span class="clock" id="clock">--:--:--</span>
-</header>
+  <div class="pointer-events-none fixed inset-0 z-0 grid-backdrop opacity-30"></div>
 
-<nav class="tabs" role="tablist">
-  <button data-tab="overview" class="active" role="tab" aria-selected="true">Overview</button>
-  <button data-tab="registry" role="tab" aria-selected="false">Registry</button>
-  <button data-tab="pay"      role="tab" aria-selected="false">Pay</button>
-  <button data-tab="log"      role="tab" aria-selected="false">Log<span class="badge" id="logBadge" style="display:none">0</span></button>
-</nav>
-
-<main>
-
-  <section class="tab active" id="tab-overview" role="tabpanel">
-    <div class="banner" id="offlineBanner">
-      API unreachable at <code id="apiHost"></code> — start the router with <code>node src/index.js serve</code>, then reload.
-    </div>
-
-    <h2 class="sect">Network Stats</h2>
-    <div class="grid stats">
-      <div class="card stat"><div class="label">Uptime</div><div class="value" id="stUptime">—</div><div class="note" id="stUptimeNote">waiting for /health…</div></div>
-      <div class="card stat magenta"><div class="label">Tx Count</div><div class="value" id="stTx">0</div><div class="note" id="stTxNote">this session</div></div>
-      <div class="card stat magenta"><div class="label">Volume</div><div class="value" id="stVol">0.00</div><div class="note">USDC paid · this session</div></div>
-      <div class="card stat"><div class="label">Providers</div><div class="value" id="stProv">—</div><div class="note" id="stProvNote">loading registry…</div></div>
-    </div>
-
-    <h2 class="sect">Agent Wallets</h2>
-    <div class="grid wallets" id="walletCards">
-      <div class="emptybox">no agent data yet — waiting for /health …</div>
-    </div>
-  </section>
-
-  <section class="tab" id="tab-registry" role="tabpanel">
-    <h2 class="sect">Provider Catalog <button id="regRefresh" type="button">↻ refresh</button></h2>
-    <div class="toolbar">
-      <input type="search" id="regSearch" placeholder="filter by name / type / chain / source…" style="min-width:320px">
-      <span class="pill"><span id="regCount">0</span>&nbsp;rows</span>
-    </div>
-    <div class="card" style="padding:6px 4px">
-      <table class="reg">
-        <thead><tr><th style="width:46%">Provider</th><th>Type</th><th>Price</th><th>Chain</th><th>Source</th></tr></thead>
-        <tbody id="regBody"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="tab" id="tab-pay" role="tabpanel">
-    <div class="paywrap">
-      <div>
-        <h2 class="sect">New Payment</h2>
-        <form class="pay card" id="payForm">
-          <div>
-            <label for="payType">Data type</label>
-            <select id="payType"></select>
-          </div>
-          <div>
-            <label for="payQ">Query</label>
-            <input type="text" id="payQ" placeholder='e.g. "arc ecosystem news"'>
-          </div>
-          <button class="btn-pay" type="submit" id="payBtn">PAY</button>
-          <div class="hintline">POST /proxy → cheapest healthy provider for the type. Payment settles in USDC via your Circle agent wallet — this can take up to a minute on-chain.</div>
-        </form>
+  <div class="relative min-h-screen pb-24">
+    <!-- TOP BAR -->
+    <header class="sticky top-0 z-40 px-4 pt-4 sm:px-6">
+      <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-4 rounded-2xl glass px-4 py-3 panel-shadow">
+        <a href="/" class="flex items-center gap-3 transition-opacity hover:opacity-80">
+          <span class="grid h-9 w-9 place-items-center rounded-xl border border-pink-500/50 bg-pink-500/10 text-pink-300 pulse-glow text-sm">&#9670;</span>
+          <span>
+            <span class="block font-display text-sm font-bold tracking-[0.18em]">PULSROUTER</span>
+            <span class="block font-mono text-[10px] uppercase tracking-[0.28em] text-gray-500">x402 control deck</span>
+          </span>
+        </a>
+        <div class="flex-1"></div>
+        <button id="node-btn" onclick="promptNode()" title="Click to change target PulsRouter API node" class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-[11px] text-pink-300 transition-colors hover:border-pink-500/50 hover:bg-white/10">
+          <span class="text-gray-500">node:</span> <span id="node-label">auto</span>
+        </button>
+        <span id="online-badge" class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-[11px] text-gray-500">
+          <span id="online-dot" class="h-1.5 w-1.5 rounded-full bg-gray-500"></span>
+          <span id="online-text">connecting</span>
+        </span>
+        <span id="clock" class="font-mono text-xs text-gray-500 tabular-nums">--:--:--</span>
       </div>
-      <div class="receipt waiting card" id="receipt">
-        <pre id="receiptOut">// receipt will appear here
+
+      <!-- TABS -->
+      <nav class="mx-auto mt-3 flex max-w-7xl gap-1.5 overflow-x-auto rounded-2xl glass p-1.5">
+        <button onclick="openTab('overview')" id="tab-overview" class="relative shrink-0 rounded-xl px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] transition-all duration-300 bg-pink-500/20 text-pink-300 shadow-[inset_0_0_0_1px_color-mix(in_oklab,rgb(214,51,132)_45%,transparent)]">Overview</button>
+        <button onclick="openTab('registry')" id="tab-registry" class="relative shrink-0 rounded-xl px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] transition-all duration-300 text-gray-500 hover:bg-white/5 hover:text-white">Registry</button>
+        <button onclick="openTab('pay')" id="tab-pay" class="relative shrink-0 rounded-xl px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] transition-all duration-300 text-gray-500 hover:bg-white/5 hover:text-white">Pay</button>
+        <button onclick="openTab('log')" id="tab-log" class="relative shrink-0 rounded-xl px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] transition-all duration-300 text-gray-500 hover:bg-white/5 hover:text-white">Log <span id="unread-badge" class="ml-2 hidden rounded-full bg-pink-500/25 px-1.5 py-0.5 text-[10px] text-pink-300"></span></button>
+      </nav>
+    </header>
+
+    <main class="relative z-20 mx-auto mt-8 max-w-7xl px-4 sm:px-6">
+      <!-- OFFLINE BANNER -->
+      <div id="offline-banner" class="mb-6 hidden rounded-2xl border border-red-500/35 bg-red-500/10 p-4 font-mono text-xs text-red-400">
+        API unreachable at <code id="api-url" class="text-white"></code> &mdash; start the router with <code class="text-white">node src/index.js serve</code>, then reload.
+      </div>
+
+      <!-- OVERVIEW TAB -->
+      <section id="panel-overview" class="animate-fade-in">
+        <div class="reveal mb-5 mt-10 first:mt-0">
+          <div class="kicker">Live telemetry</div>
+          <h2 class="mt-2 display-2">Network stats</h2>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div class="reveal-scale group relative overflow-hidden rounded-2xl border border-white/10 bg-surface/50 p-6 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-pink-500/50 hover:panel-shadow">
+            <div class="pointer-events-none absolute -right-14 -top-14 h-32 w-32 rounded-full bg-pink-500/20 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100"></div>
+            <div class="font-mono text-[10px] uppercase tracking-[0.26em] text-gray-500">Uptime</div>
+            <div id="stat-uptime" class="mt-2 font-display text-3xl font-bold tabular-nums text-foreground">&mdash;</div>
+            <div id="stat-uptime-note" class="mt-1 font-mono text-[11px] text-gray-500">waiting for /health&hellip;</div>
+          </div>
+          <div class="reveal-scale group relative overflow-hidden rounded-2xl border border-white/10 bg-surface/50 p-6 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-pink-500/50 hover:panel-shadow">
+            <div class="pointer-events-none absolute -right-14 -top-14 h-32 w-32 rounded-full bg-pink-500/20 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100"></div>
+            <div class="font-mono text-[10px] uppercase tracking-[0.26em] text-gray-500">Tx count</div>
+            <div id="stat-tx" class="mt-2 font-display text-3xl font-bold tabular-nums text-pink-300">0</div>
+            <div id="stat-tx-note" class="mt-1 font-mono text-[11px] text-gray-500">successful payments &middot; session</div>
+          </div>
+          <div class="reveal-scale group relative overflow-hidden rounded-2xl border border-white/10 bg-surface/50 p-6 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-pink-500/50 hover:panel-shadow">
+            <div class="pointer-events-none absolute -right-14 -top-14 h-32 w-32 rounded-full bg-pink-500/20 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100"></div>
+            <div class="font-mono text-[10px] uppercase tracking-[0.26em] text-gray-500">Volume</div>
+            <div id="stat-vol" class="mt-2 font-display text-3xl font-bold tabular-nums text-pink-300">$0.00</div>
+            <div class="mt-1 font-mono text-[11px] text-gray-500">USDC paid &middot; this session</div>
+          </div>
+          <div class="reveal-scale group relative overflow-hidden rounded-2xl border border-white/10 bg-surface/50 p-6 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-pink-500/50 hover:panel-shadow">
+            <div class="pointer-events-none absolute -right-14 -top-14 h-32 w-32 rounded-full bg-violet-500/20 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100"></div>
+            <div class="font-mono text-[10px] uppercase tracking-[0.26em] text-gray-500">Providers</div>
+            <div id="stat-providers" class="mt-2 font-display text-3xl font-bold tabular-nums text-violet-400">&mdash;</div>
+            <div id="stat-providers-note" class="mt-1 font-mono text-[11px] text-gray-500">loading registry&hellip;</div>
+          </div>
+        </div>
+
+        <!-- AGENT WALLETS -->
+        <div class="reveal mb-5 mt-10 first:mt-0">
+          <div class="kicker">Circle agent wallets</div>
+          <h2 class="mt-2 display-2">Agent wallets</h2>
+        </div>
+        <div id="wallets-container" class="rounded-2xl border border-dashed border-white/10 bg-surface/30 px-5 py-10 text-center font-mono text-xs text-gray-500">
+          connecting&hellip;
+        </div>
+      </section>
+
+      <!-- REGISTRY TAB -->
+      <section id="panel-registry" class="hidden animate-fade-in">
+        <div class="reveal mb-5 mt-10 first:mt-0">
+          <div class="kicker">Provider catalog</div>
+          <h2 class="mt-2 display-2">Registry</h2>
+        </div>
+        <div class="mb-4 flex flex-wrap items-center gap-3">
+          <input id="reg-search" oninput="renderRegistry()" type="search" placeholder="filter by name / type / chain / source&hellip;" class="min-w-[18rem] flex-1 rounded-xl border border-white/10 bg-surface/60 px-4 py-2.5 font-mono text-xs outline-none backdrop-blur-md transition-colors placeholder:text-gray-500 focus:border-pink-500/60">
+          <span id="reg-count" class="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 font-mono text-[11px] text-gray-500">0 rows</span>
+        </div>
+        <div class="reveal overflow-hidden rounded-2xl border border-white/10 bg-surface/50 backdrop-blur-xl">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-surface-raised/60 font-mono text-[11px] uppercase tracking-wider text-gray-500">
+              <tr><th class="px-5 py-3 font-medium">Provider</th><th class="px-5 py-3 font-medium">Type</th><th class="px-5 py-3 font-medium">Price</th><th class="px-5 py-3 font-medium">Chain</th><th class="px-5 py-3 font-medium">Source</th></tr>
+            </thead>
+            <tbody id="reg-body" class="divide-y divide-white/10"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- PAY TAB -->
+      <section id="panel-pay" class="hidden animate-fade-in">
+        <div class="reveal mb-5 mt-10 first:mt-0">
+          <div class="kicker">x402 execution</div>
+          <h2 class="mt-2 display-2">New payment</h2>
+        </div>
+        <div class="grid gap-5 lg:grid-cols-2">
+          <form id="pay-form" onsubmit="submitPay(event)" class="reveal rounded-2xl border border-white/10 bg-surface/50 p-6 backdrop-blur-xl">
+            <label class="font-mono text-[11px] uppercase tracking-[0.2em] text-gray-500">Data type</label>
+            <select id="pay-type" class="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 font-mono text-sm outline-none transition-colors focus:border-pink-500/60">
+              <option value="research">research</option>
+              <option value="markets">markets</option>
+            </select>
+            <label class="mt-5 block font-mono text-[11px] uppercase tracking-[0.2em] text-gray-500">Query</label>
+            <input id="pay-q" type="text" placeholder='e.g. "arc ecosystem news"' class="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 font-mono text-sm outline-none transition-colors placeholder:text-gray-500 focus:border-pink-500/60">
+            <button type="submit" id="pay-btn" class="mt-6 w-full rounded-xl bg-white px-6 py-3.5 text-sm font-semibold text-gray-900 transition-all glow-ring hover:brightness-110 active:scale-95 disabled:opacity-60">PAY</button>
+            <p class="mt-4 font-mono text-[11px] leading-relaxed text-gray-500">POST /proxy &rarr; cheapest healthy provider for the type. Settles in USDC via your Circle agent wallet &mdash; can take up to a minute on-chain.</p>
+          </form>
+          <div id="receipt-box" class="reveal overflow-hidden rounded-2xl border border-white/10 bg-surface/50 backdrop-blur-xl">
+            <div id="receipt-head" class="border-b border-white/10 px-5 py-3 font-mono text-xs text-pink-300">awaiting instruction</div>
+            <pre id="receipt-body" class="max-h-[28rem] overflow-auto px-5 py-4 font-mono text-[11px] leading-relaxed text-gray-500">// receipt will appear here
 // pick a type, enter a query, hit PAY.</pre>
-      </div>
-    </div>
-  </section>
+          </div>
+        </div>
+      </section>
 
-  <section class="tab" id="tab-log" role="tabpanel">
-    <h2 class="sect">Audit Trail <button id="logClear" type="button">✕ clear</button></h2>
-    <div class="logwrap" id="logWrap"></div>
-  </section>
-
-</main>
+      <!-- LOG TAB -->
+      <section id="panel-log" class="hidden animate-fade-in">
+        <div class="reveal mb-5 mt-10 first:mt-0">
+          <div class="kicker">Audit trail</div>
+          <h2 class="mt-2 display-2">Event log</h2>
+        </div>
+        <div class="mb-4 flex justify-end">
+          <button onclick="clearLogs()" class="rounded-xl border border-white/10 bg-white/5 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.18em] transition-colors hover:border-pink-500/50 hover:text-pink-300">&#10005; clear</button>
+        </div>
+        <div id="log-container" class="reveal max-h-[70vh] overflow-auto rounded-2xl border border-white/10 bg-surface/50 backdrop-blur-xl">
+          <div class="px-5 py-10 text-center font-mono text-xs text-gray-500">no events yet</div>
+        </div>
+      </section>
+    </main>
+  </div>
 
 <script>
-"use strict";
-
-const qsApi = new URLSearchParams(location.search).get("api");
-const API = qsApi || (location.protocol.startsWith("http") ? "" : "http://localhost:3000");
-
-const $ = (id) => document.getElementById(id);
-const els = {
-  statusPill: $("statusPill"), statusTxt: $("statusTxt"), clock: $("clock"),
-  banner: $("offlineBanner"), apiHost: $("apiHost"),
-  stUptime: $("stUptime"), stUptimeNote: $("stUptimeNote"),
-  stTx: $("stTx"), stTxNote: $("stTxNote"), stVol: $("stVol"),
-  stProv: $("stProv"), stProvNote: $("stProvNote"),
-  wallets: $("walletCards"),
-  regBody: $("regBody"), regSearch: $("regSearch"), regCount: $("regCount"), regRefresh: $("regRefresh"),
-  payForm: $("payForm"), payType: $("payType"), payQ: $("payQ"), payBtn: $("payBtn"),
-  receipt: $("receipt"), receiptOut: $("receiptOut"),
-  logWrap: $("logWrap"), logClear: $("logClear"), logBadge: $("logBadge"),
+// ---- Helpers ----
+const apiBase = () => {
+  const custom = typeof localStorage !== 'undefined' ? localStorage.getItem('pulsrouter_api_target') : null;
+  if (custom) return custom.replace(/\/$/, '');
+  const qs = new URLSearchParams(window.location.search).get('api');
+  if (qs) return qs.replace(/\/$/, '');
+  return window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 };
 
-const state = {
-  online: null,
-  health: null,
-  bootMs: 0,
-  registry: [],
-  stats: { tx: 0, vol: 0, fail: 0 },
-  unread: 0,
-  feedKeys: new Set(),
-};
-
-function esc(s) {
-  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-function shortAddr(a) {
-  const s = String(a || "");
-  return s.length > 14 ? s.slice(0, 8) + "…" + s.slice(-6) : s;
-}
-function fmtUsdc(n) {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return String(n);
-  return v.toFixed(v < 0.01 && v > 0 ? 4 : 2).replace(/\.?0+$/, (m) => (m.includes(".") ? "" : m)) || "0";
-}
-function fmtUptime(sec) {
-  sec = Math.max(0, Math.floor(Number(sec) || 0));
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
-  return (h ? h + "h " : "") + (h || m ? String(m).padStart(h ? 2 : 1, "0") + "m " : "") + String(s).padStart(2, "0") + "s";
-}
-function now() { return new Date().toLocaleTimeString("en-GB", { hour12: false }); }
-function pretty(v) {
-  try { return JSON.stringify(v, null, 2); } catch { return String(v); }
+function updateNodeLabel() {
+  const current = apiBase();
+  const label = document.getElementById('node-label');
+  if (!label) return;
+  if (!current) {
+    label.textContent = 'same-origin';
+  } else if (current === 'http://localhost:3000') {
+    label.textContent = 'localhost:3000';
+  } else {
+    try { label.textContent = new URL(current).host; } catch { label.textContent = current.slice(0, 16); }
+  }
 }
 
-async function api(path, opts = {}, timeoutMs = 10000) {
+function promptNode() {
+  const current = apiBase();
+  const next = window.prompt(
+    'Connect Control Deck to PulsRouter Node:\n\n' +
+    '• Leave empty for Hosted Gateway (same origin)\n' +
+    '• Type "http://localhost:3000" for your local daemon\n' +
+    '• Or enter any remote node URL:',
+    current || ''
+  );
+  if (next === null) return;
+  if (!next.trim()) {
+    localStorage.removeItem('pulsrouter_api_target');
+  } else {
+    let u = next.trim();
+    if (!/^https?:\/\//i.test(u)) u = 'http://' + u;
+    localStorage.setItem('pulsrouter_api_target', u);
+  }
+  window.location.reload();
+}
+
+async function apiCall(path, opts = {}, timeoutMs = 10000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(API + path, { ...opts, signal: ctrl.signal });
-    let body = null, raw = "";
-    try { raw = await res.text(); body = JSON.parse(raw); } catch { body = { nonJson: raw.slice(0, 300) }; }
-    if (!res.ok) throw Object.assign(new Error("HTTP " + res.status), { body });
+    const res = await fetch(apiBase() + path, { ...opts, signal: ctrl.signal });
+    const raw = await res.text();
+    let body;
+    try { body = JSON.parse(raw); } catch { body = { nonJson: raw.slice(0, 300) }; }
+    if (!res.ok) { const err = new Error(`HTTP ${res.status}`); err.body = body; throw err; }
     return body;
   } finally { clearTimeout(timer); }
 }
 
+const shortAddr = (a) => { const s = String(a ?? ''); return s.length > 14 ? `${s.slice(0, 8)}\u2026${s.slice(-6)}` : s; };
+const fmtUsdc = (n) => { const v = Number(n); if (!Number.isFinite(v)) return String(n ?? '\u2014'); return v.toFixed(v > 0 && v < 0.01 ? 4 : 2); };
+const fmtUptime = (input) => { const sec = Math.max(0, Math.floor(Number(input) || 0)); const h = Math.floor(sec / 3600); const m = Math.floor((sec % 3600) / 60); const s = sec % 60; return `${h ? `${h}h ` : ''}${h || m ? `${String(m).padStart(h ? 2 : 1, '0')}m ` : ''}${String(s).padStart(2, '0')}s`; };
+const clockNow = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
+const pretty = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
+
+// ---- State ----
+let currentTab = 'overview';
+let online = null;
+let bootMs = 0;
+let uptime = '\u2014';
+let registry = [];
+let logs = [];
+let logId = 0;
+let unread = 0;
+let stats = { tx: 0, vol: 0, fail: 0 };
+let feedKeys = new Set();
+
+// ---- Clock ----
+setInterval(() => { document.getElementById('clock').textContent = clockNow(); }, 1000);
+document.getElementById('clock').textContent = clockNow();
+
+// ---- Online badge ----
 function setOnline(on, detail) {
-  if (state.online === on) return;
-  state.online = on;
-  els.statusPill.className = "pill " + (on ? "on" : "off");
-  els.statusTxt.textContent = on ? "online" : "offline";
-  els.banner.classList.toggle("show", !on);
-  if (!on) {
-    els.apiHost.textContent = esc(API || location.origin || "localhost:3000");
-    log("ERR", "API unreachable" + (detail ? " — " + detail : ""), { api: API });
+  if (online === on) return;
+  online = on;
+  const badge = document.getElementById('online-badge');
+  const dot = document.getElementById('online-dot');
+  const text = document.getElementById('online-text');
+  const banner = document.getElementById('offline-banner');
+  if (on) {
+    badge.className = 'inline-flex items-center gap-2 rounded-full border border-green-500/40 bg-green-500/10 px-3 py-1.5 font-mono text-[11px] text-green-400';
+    dot.className = 'h-1.5 w-1.5 rounded-full bg-green-400 pulse-glow';
+    text.textContent = 'online';
+    banner.classList.add('hidden');
+    addLog('INFO', `connected to router API \u00b7 ${apiBase() || 'same origin'}`);
   } else {
-    log("INFO", "connected to router API", { api: API });
+    badge.className = 'inline-flex items-center gap-2 rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1.5 font-mono text-[11px] text-red-400';
+    dot.className = 'h-1.5 w-1.5 rounded-full bg-red-400';
+    text.textContent = 'offline';
+    if (detail) addLog('ERR', `API unreachable \u2014 ${detail}`);
+    document.getElementById('api-url').textContent = apiBase() || window.location.origin;
+    banner.classList.remove('hidden');
   }
 }
 
+// ---- Logs ----
+function addLog(kind, msg, raw) {
+  logId++;
+  logs.unshift({ id: logId, time: clockNow(), kind, msg, raw });
+  if (logs.length > 400) logs.length = 400;
+  if (currentTab !== 'log') { unread = Math.min(unread + 1, 99); renderUnread(); }
+  if (currentTab === 'log') renderLogs();
+}
+
+function clearLogs() { logs = []; addLog('INFO', 'audit trail cleared'); }
+
+function renderLogs() {
+  const el = document.getElementById('log-container');
+  if (!logs.length) { el.innerHTML = '<div class="px-5 py-10 text-center font-mono text-xs text-gray-500">no events yet</div>'; return; }
+  el.innerHTML = logs.map(l => {
+    const cls = l.kind === 'ERR' ? 'bg-red-500/15 text-red-400' : l.kind === 'PAY' ? 'bg-pink-500/15 text-pink-300' : l.kind === 'FEED' ? 'bg-violet-500/15 text-violet-400' : 'bg-white/10 text-gray-500';
+    return `<div class="flex flex-wrap items-start gap-3 border-b border-white/10 px-5 py-2.5 font-mono text-[11px] last:border-0">
+      <span class="text-gray-500 tabular-nums">${l.time}</span>
+      <span class="rounded px-1.5 py-0.5 ${cls}">${l.kind}</span>
+      <span class="${l.kind === 'ERR' ? 'text-red-400/90' : 'text-white/90'}">${l.msg}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderUnread() {
+  const el = document.getElementById('unread-badge');
+  if (unread > 0) { el.textContent = unread; el.classList.remove('hidden'); } else { el.classList.add('hidden'); }
+}
+
+// ---- Tabs ----
+function openTab(k) {
+  currentTab = k;
+  ['overview', 'registry', 'pay', 'log'].forEach(t => {
+    const btn = document.getElementById(`tab-${t}`);
+    const panel = document.getElementById(`panel-${t}`);
+    if (t === k) {
+      btn.className = 'relative shrink-0 rounded-xl px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] transition-all duration-300 bg-pink-500/20 text-pink-300 shadow-[inset_0_0_0_1px_color-mix(in_oklab,rgb(214,51,132)_45%,transparent)]';
+      panel.classList.remove('hidden');
+      panel.classList.add('animate-fade-in');
+    } else {
+      btn.className = 'relative shrink-0 rounded-xl px-4 py-2 font-mono text-xs uppercase tracking-[0.18em] transition-all duration-300 text-gray-500 hover:bg-white/5 hover:text-white';
+      panel.classList.add('hidden');
+    }
+  });
+  if (k === 'log') { unread = 0; renderUnread(); renderLogs(); }
+}
+
+// ---- Uptime ticker ----
+setInterval(() => {
+  if (!bootMs) return;
+  uptime = fmtUptime((Date.now() - bootMs) / 1000);
+  document.getElementById('stat-uptime').textContent = uptime;
+}, 1000);
+
+// ---- Polling ----
 async function pollHealth() {
   try {
-    const h = await api("/health", {}, 8000);
+    const h = await apiCall('/health', {}, 8000);
     setOnline(true);
-    state.health = h;
-    if (!state.bootMs && Number.isFinite(Number(h.uptimeSec))) state.bootMs = Date.now() - Number(h.uptimeSec) * 1000;
-    renderHealth();
-  } catch (e) {
-    setOnline(false, e.message);
-    els.stUptimeNote.textContent = state.health ? "last seen " + new Date().toLocaleTimeString("en-GB", { hour12: false }) : "waiting for /health…";
-  }
+    const secs = Number(h['uptimeSec']);
+    if (Number.isFinite(secs)) { bootMs = bootMs || Date.now() - secs * 1000; }
+    document.getElementById('stat-uptime-note').textContent = 'server reported ok';
+    renderWallets(h);
+  } catch (e) { setOnline(false, e.message); }
 }
 
-async function pollRegistry(silent = true) {
+async function pollRegistry() {
   try {
-    const j = await api("/registry", {}, 15000);
+    const j = await apiCall('/registry', {}, 15000);
     setOnline(true);
-    state.registry = Array.isArray(j?.registry) ? j.registry : (Array.isArray(j) ? j : []);
+    registry = Array.isArray(j?.registry) ? j.registry : Array.isArray(j) ? j : [];
+    document.getElementById('stat-providers').textContent = registry.length || '\u2014';
+    const types = new Set(registry.map(r => r.type));
+    document.getElementById('stat-providers-note').textContent = registry.length ? `${types.size} data type(s) available` : 'loading registry\u2026';
     renderRegistry();
-    renderTypeOptions();
-    els.stProv.textContent = String(state.registry.length);
-    const types = new Set(state.registry.map((r) => r.type)).size;
-    els.stProvNote.textContent = types + " data type(s) available";
-  } catch (e) {
-    setOnline(false, e.message);
-  }
+  } catch (e) { setOnline(false, e.message); }
 }
 
-function normalizeFeed(j) {
-  const arr = Array.isArray(j) ? j : (j && (j.feed || j.events || j.decisions || j.items || j.log)) || [];
-  return arr.filter(Boolean);
-}
-let feedTimer = null;
 async function pollFeed() {
-  clearTimeout(feedTimer);
   try {
-    const j = await api("/api/agents/feed", {}, 8000);
-    for (const ev of normalizeFeed(j)) ingestFeedEvent(ev);
-  } catch { /* feed is optional until backend ships it */ }
-  feedTimer = setTimeout(pollFeed, 5000);
+    const j = await apiCall('/api/agents/feed', {}, 8000);
+    const arr = Array.isArray(j) ? j : Array.isArray(j?.feed) ? j.feed : Array.isArray(j?.events) ? j.events : [];
+    for (const ev of arr) {
+      const o = typeof ev === 'object' && ev !== null ? ev : { value: ev };
+      const ts = o.ts ?? o.time ?? o.timestamp ?? '';
+      const kind = String(o.kind ?? o.type ?? o.action ?? 'event').toLowerCase();
+      const via = o.provider ?? o.via ?? o.name ?? '';
+      const price = o.priceUsdc ?? o.amount ?? '';
+      const key = `${ts}|${JSON.stringify(o).slice(0, 120)}`;
+      if (feedKeys.has(key)) continue;
+      feedKeys.add(key);
+      const bits = [kind];
+      if (via) bits.push(`\u2192 ${via}`);
+      if (price !== undefined && price !== null) bits.push(`${fmtUsdc(price)} USDC`);
+      addLog('FEED', bits.join('  '), o);
+    }
+  } catch { /* feed is optional */ }
 }
 
-function ingestFeedEvent(ev) {
-  const o = typeof ev === "object" && ev !== null ? ev : { value: ev };
-  const key = JSON.stringify(o.ts ?? o.time ?? o.timestamp ?? "") + "|" + JSON.stringify(o).slice(0, 180);
-  if (state.feedKeys.has(key)) return;
-  state.feedKeys.add(key);
-  if (state.feedKeys.size > 400) state.feedKeys.delete(state.feedKeys.values().next().value);
+updateNodeLabel();
+addLog('INFO', `control deck booting \u2014 api base: ${apiBase() || window.location.origin}`);
+pollHealth();
+pollRegistry();
+pollFeed();
+setInterval(pollHealth, 5000);
+setInterval(pollRegistry, 30000);
+setInterval(pollFeed, 5000);
 
-  const ts = o.ts ?? o.time ?? o.timestamp;
-  const kind = String(o.kind || o.type || o.action || "event").toLowerCase();
-  const provider = o.provider || o.via || o.name || o.resource || "";
-  const price = o.priceUsdc ?? o.amount ?? o.cost;
-  const status = o.status || o.state || (o.ok === true ? "ok" : o.ok === false ? "failed" : "");
-  const bits = [kind];
-  if (o.q || o.query) bits.push("“" + String(o.q || o.query).slice(0, 60) + "”");
-  if (provider) bits.push("→ " + provider);
-  if (price !== undefined && price !== null && price !== "") bits.push(fmtUsdc(price) + " USDC");
-  if (status) bits.push("[" + status + "]");
-  const when = typeof ts === "number" ? new Date(ts < 1e12 ? ts * 1000 : ts) : new Date(ts || Date.now());
-  const stamp = isNaN(when) ? "" : when.toLocaleTimeString("en-GB", { hour12: false }) + " ";
-  log("FEED", esc(stamp + bits.join("  ")), o, "k-feed");
-}
-
-function renderHealth() {
-  const h = state.health || {};
-  els.stUptimeNote.textContent = "server reported ok:" + (h.ok === undefined ? "?" : h.ok);
-  tickUptime();
-  renderWallets();
-}
-
-function tickUptime() {
-  if (state.bootMs) els.stUptime.textContent = fmtUptime((Date.now() - state.bootMs) / 1000);
-  else if (state.health && Number.isFinite(Number(state.health.uptimeSec))) els.stUptime.textContent = fmtUptime(state.health.uptimeSec);
-}
-
-function walletView(item) {
-  if (item === null || item === undefined) return null;
-  if (typeof item !== "object") return { title: String(item), kv: [], raw: pretty(item) };
-  const addr = item.address || item.wallet || item.id || "";
-  const label = item.label || item.name || (addr ? shortAddr(addr) : "agent");
-  const balances = Array.isArray(item.balances)
-    ? item.balances.map((b) => ({ symbol: b.symbol || b.token?.symbol || "?", amount: b.amount ?? b.token?.amount ?? "", native: !!b.native }))
-    : [];
-  const kv = Object.entries(item)
-    .filter(([k]) => !["address", "wallet", "id", "label", "name", "balances"].includes(k))
-    .slice(0, 6)
-    .map(([k, v]) => [k, typeof v === "object" ? JSON.stringify(v).slice(0, 60) : String(v)]);
-  return { title: label, addr, balances, kv, raw: pretty(item) };
-}
-
-function renderWallets() {
-  const stack = state.health?.agentStack;
-  const wrap = els.wallets;
-  let items;
-  if (stack === undefined || stack === null || stack === "") items = [];
-  else if (Array.isArray(stack)) items = stack.map(walletView);
-  else items = [walletView(stack)];
-
-  if (!items.length || items.every((i) => i === null)) {
-    wrap.innerHTML = '<div class="emptybox">' +
-      (state.online ? "agentStack not reported by /health — wallets unknown" : "offline — cannot read agent wallets") +
-      "</div>";
+// ---- Wallets ----
+function renderWallets(h) {
+  let stack = h?.agentStack;
+  if (!stack && Array.isArray(h?.wallets) && h.wallets.length) {
+    stack = h.wallets.map(w => (typeof w === 'string' ? { address: w, label: 'wallet' } : w));
+  }
+  if (!stack || (Array.isArray(stack) && !stack.length)) {
+    document.getElementById('wallets-container').innerHTML = '<div class="rounded-2xl border border-dashed border-white/10 bg-surface/30 px-5 py-10 text-center font-mono text-xs text-gray-500">no active wallets configured in pulsrouter.config.json</div>';
     return;
   }
-  wrap.innerHTML = items.map((w) => {
-    if (!w) return "";
-    const bal = w.balances.length
-      ? '<ul class="bal">' + w.balances.map((b) =>
-          "<li><span>" + esc(b.symbol) + (b.native ? ' · native' : '') + "</span><b>" + esc(b.amount) + "</b></li>").join("") + "</ul>"
-      : "";
-    const kv = w.kv.length
-      ? w.kv.map(([k, v]) => '<div class="raw">' + esc(k) + ": " + esc(v) + "</div>").join("")
-      : "";
-    return '<div class="card wallet">' +
-      '<div class="label" style="font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--faint)">Agent Wallet</div>' +
-      '<div style="margin-top:6px;font-size:15px;font-weight:700;color:var(--txt)">' + esc(w.title) + "</div>" +
-      (w.addr ? '<div class="addr">' + esc(shortAddr(w.addr)) + "</div>" : "") +
-      bal + kv +
-      "</div>";
-  }).join("");
+  const arr = Array.isArray(stack) ? stack : [stack];
+  const cards = arr.filter(Boolean).map(item => {
+    const o = typeof item === 'object' && item !== null ? item : {};
+    const addr = String(o.address ?? o.wallet ?? o.id ?? '');
+    const title = String(o.label ?? o.name ?? (addr ? shortAddr(addr) : 'agent'));
+    const balances = Array.isArray(o.balances) ? o.balances.map(b => {
+      const t = b?.token ?? {};
+      return { symbol: String(b?.symbol ?? t?.symbol ?? '?'), amount: String(b?.amount ?? t?.amount ?? ''), native: Boolean(b?.native) };
+    }) : [];
+    const skip = ['address', 'wallet', 'id', 'label', 'name', 'balances'];
+    const kv = Object.entries(o).filter(([k]) => !skip.includes(k)).slice(0, 6).map(([k, v]) => [k, typeof v === 'object' ? JSON.stringify(v).slice(0, 60) : String(v)]);
+    return `<article class="reveal rounded-2xl border border-white/10 bg-surface/50 p-6 backdrop-blur-xl transition-all duration-500 hover:-translate-y-1 hover:border-pink-500/50 hover:panel-shadow" data-visible="true">
+      <div class="font-mono text-[10px] uppercase tracking-[0.26em] text-gray-500">Agent wallet</div>
+      <div class="mt-1.5 display-3">${title}</div>
+      ${addr ? `<div class="mt-2 font-mono text-[11px] text-violet-400">${shortAddr(addr)}</div>` : ''}
+      ${balances.length ? `<ul class="mt-4 space-y-1.5 border-t border-white/10 pt-3 font-mono text-xs">${balances.map(b => `<li class="flex justify-between"><span class="text-gray-500">${b.symbol}${b.native ? ' \u00b7 native' : ''}</span><b class="text-pink-300">${b.amount}</b></li>`).join('')}</ul>` : ''}
+      ${kv.length ? `<div class="mt-3 space-y-1 font-mono text-[10px] text-gray-500">${kv.map(([k, v]) => `<div class="truncate">${k}: ${v}</div>`).join('')}</div>` : ''}
+    </article>`;
+  }).join('');
+  document.getElementById('wallets-container').innerHTML = `<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">${cards}</div>`;
 }
 
+// ---- Registry ----
 function renderRegistry() {
-  const q = els.regSearch.value.trim().toLowerCase();
-  const rows = state.registry.filter((r) => {
-    if (!q) return true;
-    return [r.name, r.type, r.chain, r.source, r.endpoint].some((v) => String(v ?? "").toLowerCase().includes(q));
-  });
-  els.regCount.textContent = String(rows.length) + "/" + state.registry.length;
+  const q = (document.getElementById('reg-search')?.value || '').trim().toLowerCase();
+  const rows = q ? registry.filter(r => [r.name, r.type, r.chain, r.source, r.endpoint].some(v => String(v ?? '').toLowerCase().includes(q))) : registry;
+  document.getElementById('reg-count').textContent = `${rows.length}/${registry.length} rows`;
+  const tbody = document.getElementById('reg-body');
   if (!rows.length) {
-    els.regBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:26px;color:var(--faint)">' +
-      (state.registry.length ? "no providers match the filter" : "registry empty — add localRows to pulsrouter.config.json") + "</td></tr>";
+    tbody.innerHTML = `<tr><td colspan="5" class="px-5 py-10 text-center text-gray-500">${registry.length ? 'no providers match the filter' : 'registry empty or offline'}</td></tr>`;
     return;
   }
-  els.regBody.innerHTML = rows.map((r) =>
-    "<tr>" +
-    '<td class="name"><b>' + esc(r.name || r.endpoint || "(unnamed)") + '</b><span class="ep">' + esc(r.endpoint || "") + "</span></td>" +
-    '<td><span class="chip">' + esc(r.type || "unknown") + "</span></td>" +
-    '<td class="price">' + esc(fmtUsdc(r.priceUsdc)) + " USDC</td>" +
-    "<td>" + esc(r.chain || "any") + "</td>" +
-    '<td><span class="chip src-' + esc(r.source || "local") + '">' + esc(r.source || "local") + "</span></td>" +
-    "</tr>"
-  ).join("");
+  tbody.innerHTML = rows.map(r => `
+    <tr class="transition-colors hover:bg-pink-500/5">
+      <td class="px-5 py-3.5"><b>${r.name || r.endpoint || '(unnamed)'}</b><span class="block font-mono text-[10px] text-gray-500">${r.endpoint || ''}</span></td>
+      <td class="px-5 py-3.5"><span class="rounded-lg border border-white/10 bg-white/5 px-2 py-1 font-mono text-[11px] text-violet-400">${r.type || 'unknown'}</span></td>
+      <td class="px-5 py-3.5 font-mono text-pink-300">${fmtUsdc(r.priceUsdc)} USDC</td>
+      <td class="px-5 py-3.5 font-mono text-xs text-gray-500">${r.chain || 'any'}</td>
+      <td class="px-5 py-3.5"><span class="rounded-lg border border-pink-500/25 bg-pink-500/10 px-2 py-1 font-mono text-[11px] text-pink-300">${r.source || 'local'}</span></td>
+    </tr>
+  `).join('');
 }
 
-function renderTypeOptions() {
-  const cur = els.payType.value;
-  const types = [...new Set(["research", "markets"].concat(state.registry.map((r) => String(r.type || "").toLowerCase()).filter(Boolean)))].sort();
-  els.payType.innerHTML = types.map((t) => '<option value="' + esc(t) + '">' + esc(t) + "</option>").join("");
-  if (types.includes(cur)) els.payType.value = cur;
-}
-
-const LOG_MAX = 400;
-function log(kind, msg, rawObj, kClass) {
-  const row = document.createElement("div");
-  row.className = "logrow" + (kind === "ERR" ? " errv" : "");
-  const kc = kClass || (kind === "PAY" ? "k-pay" : kind === "ERR" ? "k-err" : kind === "FEED" ? "k-feed" : "k-info");
-  row.innerHTML =
-    '<span class="t">' + now() + "</span>" +
-    '<span class="k ' + kc + '">' + esc(kind) + "</span>" +
-    '<span class="m">' + msg + "</span>" +
-    (rawObj ? '<details class="rawlog"><summary>RAW</summary><pre>' + esc(pretty(rawObj).slice(0, 4000)) + "</pre></details>" : "");
-  els.logWrap.prepend(row);
-  while (els.logWrap.children.length > LOG_MAX) els.logWrap.lastChild.remove();
-  if (!document.querySelector('nav button[data-tab="log"]').classList.contains("active")) {
-    state.unread++;
-    els.logBadge.style.display = "";
-    els.logBadge.textContent = String(state.unread);
-  }
-}
-
-function showReceipt(mode, headHtml, bodyText) {
-  els.receipt.className = "receipt " + mode + " card";
-  els.receipt.innerHTML =
-    '<div class="rhead">' + headHtml + "</div>" +
-    "<pre>" + esc(bodyText) + "</pre>";
-}
-
+// ---- Pay ----
 async function submitPay(e) {
   e.preventDefault();
-  const type = els.payType.value.trim();
-  const q = els.payQ.value.trim();
-  if (!type) { showReceipt("errv", "<b>missing type</b>", "pick a data type first"); return; }
-  els.payBtn.disabled = true;
-  els.payBtn.textContent = "PAYING…";
-  showReceipt("waiting", '<span class="spinner"></span><b>routing + paying…</b>',
-    "POST " + (API || "") + "/proxy\n{ \"type\": \"" + type + "\", \"q\": \"" + q.replace(/"/g, '\\"') + "\" }\n\nnegotiating x402 with the cheapest healthy provider — settling in USDC. this can take up to ~60s.");
-  log("PAY", "request → type=<span class='mut'>" + esc(type) + "</span> q=<span class='mut'>“" + esc(q.slice(0, 80)) + "”</span>");
+  const type = document.getElementById('pay-type').value;
+  const q = document.getElementById('pay-q').value;
+  if (!type) { setReceipt('err', 'missing type', 'pick a data type first'); return; }
+  document.getElementById('pay-btn').disabled = true;
+  document.getElementById('pay-btn').textContent = 'PAYING\u2026';
+  setReceipt('waiting', 'routing + paying\u2026', `POST ${apiBase()}/proxy\n{ "type": "${type}", "q": "${q.replace(/"/g, '\\"')}" }\n\nnegotiating x402 with the cheapest healthy provider \u2014 settling in USDC. this can take up to ~60s.`);
+  addLog('PAY', `request \u2192 type=${type} q="${q.slice(0, 80)}"`);
   const t0 = performance.now();
   try {
-    const out = await api("/proxy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type, q }),
-    }, 250000);
+    const out = await apiCall('/proxy', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, q }) }, 250000);
     const dt = ((performance.now() - t0) / 1000).toFixed(1);
-    const via = out?.via || "?";
+    const via = String(out?.via ?? '?');
     const price = out?.priceUsdc;
-    state.stats.tx++;
-    state.stats.vol += Number(price) || 0;
-    renderStats();
-    showReceipt("okv",
-      "<b>SUCCESS</b> — paid <b style='color:var(--magenta-hi)'>" + esc(fmtUsdc(price)) + " USDC</b> via <b>" + esc(via) + "</b> <span class='mut'>(" + dt + "s)</span>",
-      pretty(out));
-    log("PAY", "settled <b>" + esc(fmtUsdc(price)) + " USDC</b> → <span class='mut'>" + esc(via) + "</span> (" + dt + "s)");
+    stats.tx++; stats.vol += Number(price) || 0;
+    document.getElementById('stat-tx').textContent = String(stats.tx);
+    document.getElementById('stat-vol').textContent = fmtUsdc(stats.vol);
+    setReceipt('ok', `SUCCESS \u2014 paid ${fmtUsdc(price)} USDC via ${via} (${dt}s)`, pretty(out));
+    addLog('PAY', `settled ${fmtUsdc(price)} USDC \u2192 ${via} (${dt}s)`, out);
   } catch (err) {
-    state.stats.fail++;
-    renderStats();
-    const body = err.body ? "\n\n" + pretty(err.body) : "";
-    showReceipt("errv", "<b>FAILED</b> — " + esc(err.message), pretty({ error: err.message }) + body);
-    log("ERR", "pay failed: " + esc(String(err.message).slice(0, 160)), err.body);
+    stats.fail++;
+    setReceipt('err', `FAILED \u2014 ${err.message}`, pretty({ error: err.message }) + (err.body ? `\n\n${pretty(err.body)}` : ''));
+    addLog('ERR', `pay failed: ${String(err.message).slice(0, 160)}`, err.body);
   } finally {
-    els.payBtn.disabled = false;
-    els.payBtn.textContent = "PAY";
+    document.getElementById('pay-btn').disabled = false;
+    document.getElementById('pay-btn').textContent = 'PAY';
   }
 }
 
-function renderStats() {
-  els.stTx.textContent = String(state.stats.tx);
-  els.stTxNote.textContent = state.stats.fail
-    ? state.stats.tx + " ok · " + state.stats.fail + " failed (session)"
-    : "successful payments · this session";
-  els.stVol.textContent = fmtUsdc(state.stats.vol);
+function setReceipt(mode, head, body) {
+  const box = document.getElementById('receipt-box');
+  const headEl = document.getElementById('receipt-head');
+  box.className = `reveal overflow-hidden rounded-2xl border bg-surface/50 backdrop-blur-xl animate-fade-in ${mode === 'ok' ? 'border-green-500/40' : mode === 'err' ? 'border-red-500/40' : 'border-white/10'}`;
+  headEl.className = `border-b border-white/10 px-5 py-3 font-mono text-xs ${mode === 'ok' ? 'text-green-400' : mode === 'err' ? 'text-red-400' : 'text-pink-300'}`;
+  headEl.textContent = head;
+  document.getElementById('receipt-body').textContent = body;
 }
 
-function switchTab(name) {
-  for (const btn of document.querySelectorAll("nav.tabs button")) {
-    btn.classList.toggle("active", btn.dataset.tab === name);
-    btn.setAttribute("aria-selected", btn.dataset.tab === name ? "true" : "false");
-  }
-  for (const sect of document.querySelectorAll("section.tab")) sect.classList.remove("active");
-  $("tab-" + name).classList.add("active");
-  if (name === "log") { state.unread = 0; els.logBadge.style.display = "none"; }
-}
-
-function bindEvents() {
-  for (const btn of document.querySelectorAll("nav.tabs button")) {
-    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
-  }
-  document.addEventListener("keydown", (e) => {
-    if (e.altKey && /^[1-4]$/.test(e.key)) switchTab(["overview", "registry", "pay", "log"][Number(e.key) - 1]);
-  });
-  els.regSearch.addEventListener("input", renderRegistry);
-  els.regRefresh.addEventListener("click", () => { log("INFO", "manual registry refresh"); pollRegistry(); });
-  els.payForm.addEventListener("submit", submitPay);
-  els.logClear.addEventListener("click", () => { els.logWrap.innerHTML = ""; log("INFO", "audit trail cleared"); });
-
-  setInterval(() => {
-    els.clock.textContent = now();
-    tickUptime();
-  }, 1000);
-  setInterval(pollHealth, 5000);
-  setInterval(() => pollRegistry(), 30000);
-}
-
-function boot() {
-  bindEvents();
-  renderStats();
-  renderRegistry();
-  log("INFO", "control deck booting — api base: " + (API || location.origin || "localhost:3000"));
-  pollHealth();
-  pollRegistry(false);
-  pollFeed();
-}
-
-boot();
+// ---- Keyboard shortcuts ----
+document.addEventListener('keydown', e => {
+  if (e.altKey && /^[1-4]$/.test(e.key)) openTab(['overview', 'registry', 'pay', 'log'][Number(e.key) - 1]);
+});
 </script>
 </body>
 </html>
